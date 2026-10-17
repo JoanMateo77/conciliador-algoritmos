@@ -1,0 +1,8 @@
+{
+  "name": "@conciliador/dian",
+  "version": "0.1.0",
+  "description": "Lector de facturas electrónicas DIAN (UBL 2.1) para cruzar pagos contra facturas.",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "license": "MIT"
+}

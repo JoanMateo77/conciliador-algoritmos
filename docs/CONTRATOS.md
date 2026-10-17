@@ -252,3 +252,158 @@ POST /conciliaciones/:id/coincidencias/:cid/rechazar    transacción: estado + e
 React 18 + Vite. Importa `@conciliador/core` y `@conciliador/plantillas`
 directamente del código fuente (alias de Vite). Variable `VITE_API_URL`
 opcional: si existe, aparece "Guardar en el servidor".
+
+---
+
+# Fases 9 a 15: contratos de ampliación
+
+Regla de compatibilidad: todo lo nuevo es **opcional y retrocompatible**. Un
+perfil, una plantilla o una llamada del MVP debe seguir funcionando igual.
+Las 115 pruebas existentes no se borran ni se debilitan.
+
+## Dueños de carpetas (para trabajar en paralelo sin choques)
+
+| Fase | Dueño de |
+|---|---|
+| 8 y 9. Formatos y anonimización | `packages/core/src/plantillas/**`, `packages/plantillas/**`, `packages/excel/**`, `scripts/anonimizar.ts` |
+| 10 y 11. Reglas y cruce N:M | `packages/core/src/cruce/**`, `packages/core/src/sesion.ts` |
+| 12 y 13. Multiempresa y escala | `apps/api/**`, `render.yaml` |
+| 15. DIAN y Bre-B | `packages/dian/**` |
+| 14. Librería pública | manifiestos `package.json`, configuración de compilación, `CHANGELOG.md`, `CONTRIBUTING.md` |
+| Panel | `apps/web/**` |
+
+El modelo (`modelo.ts`) ya trae `plantillaVersion?` y `documento?:
+DocumentoFiscal`. Nadie más lo cambia sin agregarlo aquí.
+
+## 9. Formatos
+
+```ts
+// Lectores registrables: una plantilla puede ser declarativa o apuntar a un lector propio.
+type TipoPlantilla = 'delimitado' | 'anchoFijo' | 'mt940' | 'camt053';
+interface LectorFormato {
+  tipo: string;                                   // 'mt940', 'camt053', ...
+  leer(texto: string, plantilla: Plantilla): { movimientos: Movimiento[]; errores: { linea: number; mensaje: string }[] };
+  detectar?(texto: string): number;                // 0..1
+}
+registrarLector(lector: LectorFormato): void       // en plantillas/index.ts
+// leerArchivo usa el lector según plantilla.tipo; 'delimitado' y 'anchoFijo' siguen igual.
+// Todo movimiento leído lleva plantillaVersion = plantilla.version.
+// Plantilla gana `hoja?: string` (Excel) sin efecto en el núcleo.
+```
+
+`@conciliador/excel`:
+
+```ts
+leerExcel(datos: ArrayBuffer | Uint8Array, opciones?: { hoja?: string }):
+  { hojas: string[]; texto: string }   // texto = CSV con ';' de la hoja elegida, listo para leerArchivo
+```
+
+Así una plantilla delimitada sirve igual para el CSV y para el Excel del mismo
+banco, y el núcleo sigue sin dependencias.
+
+`scripts/anonimizar.ts <entrada> <salida> [--plantilla id]`: reemplaza
+nombres, cédulas/NIT, correos, cuentas y referencias por valores sintéticos
+estables (mismo valor original → mismo reemplazo), conserva el formato
+exacto (longitudes en ancho fijo, separadores, columnas) y opcionalmente
+desplaza montos y fechas. Sirve para que usuarios reales donen archivos (fase 8).
+
+## 10. Reglas avanzadas (`cruce/reglas.ts`, `cruce/tarifas.ts`)
+
+```ts
+type Condicion =
+  | { campo: 'referencia' | 'descripcion' | 'plantilla'; op: 'igual' | 'contiene' | 'empiezaPor' | 'regex'; valor: string }
+  | { campo: 'monto'; op: 'entre'; min: number; max: number }          // centavos
+  | { campo: 'fecha'; op: 'entre'; desde: string; hasta: string };
+interface Regla {
+  id: string; nombre: string; prioridad: number;      // menor = primero
+  lado: 'banco' | 'ventas';
+  si: { todas?: Condicion[]; alguna?: Condicion[] };  // AND / OR
+  accion:
+    | { tipo: 'clasificar'; categoria: string }        // ej. 'gasto:GMF', 'comision', 'ignorar'
+    | { tipo: 'exigirReferencia' }                     // solo cruza con la misma referencia
+    | { tipo: 'tolerancia'; faltanteCentavos?: number; faltantePorcentaje?: number };
+}
+interface Tarifa {
+  nombre: string;                 // 'ReteFuente', 'ReteICA', 'ReteIVA', 'Comision', 'GMF'
+  tasa: number;
+  base: 'bruto' | 'comision' | 'iva';
+  desde: string; hasta?: string;  // vigencia ISO
+  medioPago?: string; municipio?: string;
+}
+// Perfil gana (opcionales): reglas?: Regla[]; tarifas?: Tarifa[]; municipio?: string
+// conciliar aplica primero reglas de clasificación (los clasificados salen del cruce y van a
+// ResultadoConciliacion.clasificados), luego los pases. Las tarifas vigentes a la fecha del abono
+// explican faltantes; 'retenciones' del MVP sigue funcionando.
+```
+
+## 11. Cruce N:M y explicabilidad
+
+```ts
+// Nuevo pase final opcional (Perfil.cruceOptimo?: boolean, por defecto true):
+// por cada componente del GrafoBipartito con <= 60 nodos, asignación óptima con el
+// algoritmo Húngaro (implementación propia en cruce/hungaro.ts, O(k³)) en lugar del greedy.
+// Clusters N:M: componente donde suma banco ≈ suma ventas dentro de tolerancia → tipo 'agrupadaNM'.
+// ResultadoConciliacion gana:
+//   clasificados: { id: string; lado: 'banco' | 'ventas'; categoria: string; reglaId: string }[]
+//   motivos: Record<string, string>   // id de movimiento sin cruzar -> por qué no cruzó, en español
+// Coincidencia.tipo admite además 'agrupadaNM'.
+```
+
+## 12. Multiempresa (API)
+
+Autenticación propia con `node:crypto` (scrypt para contraseñas, JWT HS256
+firmado con `JWT_SECRETO`), sin librerías nuevas. Roles: `admin`, `analista`,
+`lector`. Toda tabla con datos de negocio lleva `empresa_id` y toda consulta
+filtra por la empresa del token. Plantillas y perfiles por empresa con
+historial de versiones (nunca se sobrescriben; cada cambio crea versión).
+Auditoría: cada evento guarda `usuario_id`.
+
+```
+POST /auth/registro    { empresa, nombre, correo, contrasena } -> crea empresa + admin
+POST /auth/ingreso     { correo, contrasena } -> { token, usuario }
+GET  /empresa/usuarios | POST /empresa/usuarios (admin)
+GET/POST /empresa/plantillas, GET /empresa/plantillas/:id/versiones
+GET/POST /empresa/perfiles,   GET /empresa/perfiles/:id/versiones
+```
+
+Las rutas del MVP siguen funcionando: sin token operan en un espacio
+público de demostración (empresa `demo`).
+
+## 13. Escala (API)
+
+- Tabla `trabajos` como cola persistente: `estado` (pendiente, procesando,
+  hecho, fallido), intentos, error; se toma con `FOR UPDATE SKIP LOCKED`.
+- `POST /conciliaciones?asincrono=1` encola y responde 202 con id de trabajo;
+  `GET /trabajos/:id` da el estado.
+- `src/worker.ts` (proceso aparte, `npm run worker -w apps/api`) toma
+  trabajos, concilia y guarda en una transacción; reintentos con límite.
+- Paginación (`?limite=&cursor=`) en listados; índices para los filtros.
+- Registros estructurados JSON (una línea por evento) y `GET /metricas`.
+- `scripts/carga.ts`: prueba de carga con 10⁶ movimientos sintéticos
+  contra el núcleo y contra la cola.
+
+## 14. Librería pública
+
+- `npm run build:lib` compila `packages/core`, `packages/plantillas`,
+  `packages/excel` y `packages/dian` a `dist/` (JS + `.d.ts`) con
+  `rewriteRelativeImportExtensions`. Los `exports` publican `dist` con
+  condición `types`, y el desarrollo local sigue usando `src`.
+- `npm pack --dry-run` sin archivos de más; ejemplo de 10 líneas probado
+  en un proyecto limpio que instala el `.tgz`.
+- `CHANGELOG.md`, `CONTRIBUTING.md` (cómo aportar una plantilla), versión 0.2.0.
+
+## 15. DIAN y Bre-B (`@conciliador/dian`)
+
+```ts
+leerFacturaUBL(xml: string): { movimiento: Movimiento | null; errores: string[] }
+// Parser XML propio y pequeño (sin dependencias). Extrae número, CUFE (cbc:UUID),
+// NIT emisor/adquirente, fecha de emisión y vencimiento, subtotal, IVA, retenciones
+// (WithholdingTaxTotal) y total a pagar (PayableAmount). Movimiento lado 'ventas',
+// montoCentavos = total a pagar, referencia = número de factura, documento = DocumentoFiscal.
+leerFacturas(xmls: string[]): { movimientos: Movimiento[]; errores: { indice: number; mensaje: string }[] }
+```
+
+Bre-B: si un movimiento trae `referenciaPago` y una venta tiene la misma
+`referenciaPago` o `referencia`, el pase exacto la usa como llave principal
+(dueño: cruce). La plantilla `banco-csv-generico` puede mapear la columna
+`REFERENCIA PAGO` a `referenciaPago` (dueño: formatos).

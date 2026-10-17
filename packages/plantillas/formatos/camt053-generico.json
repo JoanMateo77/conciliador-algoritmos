@@ -1,0 +1,22 @@
+{
+  "id": "camt053-generico",
+  "nombre": "Extracto camt.053 (ISO 20022, genérico)",
+  "version": 1,
+  "lado": "banco",
+  "descripcion": "Extracto de cuenta en XML ISO 20022 camt.053 (BankToCustomerStatement). Cada <Ntry> es un movimiento: Amt, CdtDbtInd (CRDT/DBIT), BookgDt y ValDt, NtryDtls/TxDtls/Refs/EndToEndId como referencia y RmtInf/Ustrd como descripción. Se toman solo los abonos asentados (los pendientes PDNG e informativos INFO se omiten). El lector verifica que el saldo OPBD + movimientos = CLBD.",
+  "fuente": "ISO 20022, mensaje camt.053.001 (catálogo público en iso20022.org) y guías de implementación publicadas por bancos. No corresponde a un banco en particular.",
+  "tipo": "camt053",
+  "codificacion": "utf-8",
+  "separadorDecimal": ".",
+  "formatoFecha": "yyyy-MM-dd",
+  "omitirSi": [
+    { "campo": "ESTADO", "regex": "^(PDNG|INFO)$" }
+  ],
+  "soloEntradas": true,
+  "columnas": {
+    "fecha": "FECHA",
+    "monto": "MONTO",
+    "referencia": "REFERENCIA",
+    "descripcion": "DESCRIPCION"
+  }
+}

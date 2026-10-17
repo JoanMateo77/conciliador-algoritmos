@@ -1,7 +1,7 @@
 // Revisión humana del resultado: confirmar, rechazar y emparejar a mano, con deshacer/rehacer.
 // Nada se borra: la bitácora solo crece, y deshacer es un evento más.
 import type { Movimiento } from './modelo.ts';
-import type { Coincidencia, ResultadoConciliacion } from './cruce/conciliar.ts';
+import type { Clasificado, Coincidencia, ResultadoConciliacion } from './cruce/conciliar.ts';
 import { formatearCOP } from './modelo.ts';
 import { Pila } from './estructuras/Pila.ts';
 
@@ -31,6 +31,9 @@ export class SesionRevision {
   #rehacer = new Pila<Registro>();
   #bitacora: Evento[] = [];
   #siguienteId: number;
+  #clasificados: Clasificado[];
+  #motivos: Record<string, string>;
+  #sinCruzarInicial: { banco: Set<string>; ventas: Set<string> };
 
   constructor(resultado: ResultadoConciliacion) {
     let mayor = 0;
@@ -46,6 +49,36 @@ export class SesionRevision {
     // Primero lo que ya estaba sin cruzar; los que libere un rechazo van después, en orden de coincidencia.
     this.#ordenBanco = [...resultado.sinCruzarBanco, ...resultado.coincidencias.flatMap((c) => c.bancoIds)];
     this.#ordenVentas = [...resultado.sinCruzarVentas, ...resultado.coincidencias.flatMap((c) => c.ventasIds)];
+    // Resultados guardados antes de la fase 10 no traen clasificados ni motivos.
+    this.#clasificados = (resultado.clasificados ?? []).map((c) => ({ ...c }));
+    this.#motivos = { ...(resultado.motivos ?? {}) };
+    this.#sinCruzarInicial = { banco: new Set(resultado.sinCruzarBanco), ventas: new Set(resultado.sinCruzarVentas) };
+  }
+
+  // Movimientos que una regla sacó del cruce. Si luego se emparejan a mano, dejan de listarse.
+  clasificados(): Clasificado[] {
+    return this.#clasificados
+      .filter((c) => !(c.lado === 'banco' ? this.#ocupadoBanco : this.#ocupadoVentas).has(c.id))
+      .map((c) => ({ ...c }));
+  }
+
+  // Por qué un movimiento libre no está cruzado; null si está en una coincidencia activa.
+  // Si quedó libre por un rechazo, lo dice; si no, usa el motivo que calculó conciliar.
+  motivo(id: string, lado: 'banco' | 'ventas'): string | null {
+    const ocupados = lado === 'banco' ? this.#ocupadoBanco : this.#ocupadoVentas;
+    if (ocupados.has(id)) return null;
+    const clasificado = this.#clasificados.find((c) => c.lado === lado && c.id === id);
+    if (clasificado) return `Clasificado como ${clasificado.categoria} por la regla ${clasificado.reglaId}.`;
+    if (!this.#sinCruzarInicial[lado].has(id)) {
+      // La última coincidencia rechazada que lo contenía es la que lo liberó.
+      let liberadoPor: string | null = null;
+      for (const c of this.#coincidencias.values()) {
+        const ids = lado === 'banco' ? c.bancoIds : c.ventasIds;
+        if (ids.includes(id) && this.#estados.get(c.id) === 'rechazada') liberadoPor = c.id;
+      }
+      return liberadoPor ? `Quedó libre al rechazar ${liberadoPor}.` : null;
+    }
+    return this.#motivos[`${lado}:${id}`] ?? this.#motivos[id] ?? null;
   }
 
   confirmar(id: string): void {

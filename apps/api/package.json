@@ -1,10 +1,11 @@
 {
   "name": "@conciliador/api",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
-    "start": "node src/servidor.ts"
+    "start": "node src/servidor.ts",
+    "worker": "node src/worker.ts"
   },
   "dependencies": {
     "pg": "8.13.1"

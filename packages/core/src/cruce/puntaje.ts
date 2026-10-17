@@ -3,6 +3,7 @@
 import type { Perfil } from './perfil.ts';
 import type { Movimiento } from '../modelo.ts';
 import { formatearCOP } from '../modelo.ts';
+import { explicarConTarifas } from './tarifas.ts';
 
 // Margen para comparar contra porcentajes (floats) sin falsos negativos por redondeo.
 const EPSILON = 1e-6;
@@ -110,8 +111,9 @@ export interface ContextoExplicacion {
 }
 
 // Explica la diferencia banco - ventas. Busca, en este orden: desglose de las ventas,
-// comisión estimada + retenciones del perfil, y solo retenciones del perfil.
-export function explicarDiferencia(diferencia: number, ventas: Movimiento[], ctx: ContextoExplicacion): string {
+// tarifas del perfil vigentes a la fecha del abono, comisión estimada + retenciones
+// del perfil, y solo retenciones del perfil. Sin tarifas (o sin fecha) es igual al MVP.
+export function explicarDiferencia(diferencia: number, ventas: Movimiento[], ctx: ContextoExplicacion, fechaAbono?: string): string {
   const base = ventas.reduce((s, v) => s + v.montoCentavos, 0);
   if (diferencia === 0) return 'Sin diferencia.';
   if (diferencia > 0) return `Sobran ${formatearCOP(diferencia)} (pago de más), dentro de la tolerancia del perfil.`;
@@ -125,6 +127,11 @@ export function explicarDiferencia(diferencia: number, ventas: Movimiento[], ctx
 
   const conDesglose = explicarConDesglose(ventas, cuadra);
   if (conDesglose) return `${inicio} ≈ ${conDesglose}.`;
+
+  if (fechaAbono !== undefined && ctx.perfil.tarifas && ctx.perfil.tarifas.length > 0) {
+    const conTarifas = explicarConTarifas(faltante, ventas, ctx.perfil.tarifas, fechaAbono, ctx.perfil.municipio, cuadra, formatearPorcentaje);
+    if (conTarifas) return `${inicio} ≈ ${conTarifas}.`;
+  }
 
   const subconjuntos = combinaciones(ctx.perfil.retenciones);
   if (ctx.comisionEstimada !== null && ctx.comisionEstimada > 0) {

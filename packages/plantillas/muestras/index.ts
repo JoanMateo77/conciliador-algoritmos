@@ -121,4 +121,391 @@ V-2106,2026-10-14,Cliente Ejemplo 06,100294,99800.00
 81234560891,PED-2026-202480,2026-10-09T17:12:37.000-05:00,SETTLEMENT,118750.00,-5601.19,111367.56,-1781.25
 `,
   },
+  {
+    id: 'extracto-banco-mt940',
+    nombre: 'Tienda La Ceiba: extracto MT940 (octubre 2026)',
+    lado: 'banco',
+    plantillaId: 'mt940-generico',
+    archivo: 'extracto-banco-mt940.txt',
+    texto: `:20:CEIBA261015
+:25:9999/000123456789
+:28C:00010/001
+:60F:C260930COP2350000,00
+:61:2610011001C89500,00NTRFPED-2026-104823//B2610010001
+:86:ABONO PSE WOMPI
+:61:261002C89776,71NTRFWOMPI20261002//B2610020002
+:86:LIQUIDACION WOMPI LOTE
+:61:2610021002C245000,00NTRFPED-2026-117350//B2610020003
+:86:ABONO PSE WOMPI
+:61:2610051005C62300,00NTRFPED-2026-121904//B2610050004
+:86:ABONO PSE WOMPI
+:61:261005C163573,74NTRFPED-2026-126415//B2610050005
+:86:ABONO WOMPI TARJETA
+:61:2610061006C495801,80NTRFPED-2026-118842//B2610060006
+:86:ABONO WOMPI TARJETA
+:61:2610071007C71133,75NTRFPED-2026-140277//B2610070007
+:86:ABONO WOMPI TARJETA
+:61:261008C151032,11NTRFWOMPI20261008//B2610080008
+:86:LIQUIDACION WOMPI;
+LOTE 3 TRX
+:61:2610091009D48,00NCHGNONREF//B2610090009
+:86:GMF 4X1000
+:61:2610091009C190597,65NTRFPED-2026-147390//B2610090010
+:86:ABONO WOMPI TARJETA
+:61:261009C350000,00NCSHNONREF//B2610090011
+:86:CONSIGNACION EFECTIVO OFICINA
+:61:2610091009C410000,00NTRFPED-2026-133018//B2610090012
+:86:ABONO PSE WOMPI
+:61:2610131013C302161,08NTRFPED-2026-152936//B2610130013
+:86:ABONO WOMPI TARJETA
+:61:261014C135700,00NTRFPED-2026-109//B2610140014
+:86:ABONO TRANSFERENCIA
+:61:2610141014C213255,99NTRFWOMPI20261014//B2610140015
+:86:LIQUIDACION WOMPI LOTE
+:62F:C261015COP5319784,83
+`,
+  },
+  {
+    id: 'extracto-banco-camt053',
+    nombre: 'Tienda La Ceiba: extracto camt.053 (octubre 2026)',
+    lado: 'banco',
+    plantillaId: 'camt053-generico',
+    archivo: 'extracto-banco-camt053.xml',
+    texto: `<?xml version="1.0" encoding="UTF-8"?>
+<Document xmlns="urn:iso:std:iso:20022:tech:xsd:camt.053.001.02">
+  <BkToCstmrStmt>
+    <GrpHdr>
+      <MsgId>CEIBA-20261015</MsgId>
+      <CreDtTm>2026-10-15T18:00:00-05:00</CreDtTm>
+    </GrpHdr>
+    <Stmt>
+      <Id>CEIBA-2026-10</Id>
+      <CreDtTm>2026-10-15T18:00:00-05:00</CreDtTm>
+      <Acct>
+        <Id>
+          <Othr>
+            <Id>000123456789</Id>
+          </Othr>
+        </Id>
+        <Ccy>COP</Ccy>
+      </Acct>
+      <Bal>
+        <Tp><CdOrPrtry><Cd>OPBD</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="COP">2350000.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt><Dt>2026-09-30</Dt></Dt>
+      </Bal>
+      <Bal>
+        <Tp><CdOrPrtry><Cd>CLBD</Cd></CdOrPrtry></Tp>
+        <Amt Ccy="COP">5319784.83</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Dt><Dt>2026-10-15</Dt></Dt>
+      </Bal>
+      <Ntry>
+        <Amt Ccy="COP">89500.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-01</Dt></BookgDt>
+        <ValDt><Dt>2026-10-01</Dt></ValDt>
+        <AcctSvcrRef>B2610010001</AcctSvcrRef>
+        <BkTxCd><Prtry><Cd>TRANSFERENCIA</Cd></Prtry></BkTxCd>
+        <NtryDtls>
+          <TxDtls>
+            <Refs>
+              <EndToEndId>PED-2026-104823</EndToEndId>
+            </Refs>
+            <RmtInf>
+              <Ustrd>ABONO PSE WOMPI</Ustrd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="COP">89776.71</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-02</Dt></BookgDt>
+        <ValDt><Dt>2026-10-02</Dt></ValDt>
+        <AcctSvcrRef>B2610020002</AcctSvcrRef>
+        <BkTxCd><Prtry><Cd>TRANSFERENCIA</Cd></Prtry></BkTxCd>
+        <NtryDtls>
+          <TxDtls>
+            <Refs>
+              <EndToEndId>WOMPI20261002</EndToEndId>
+            </Refs>
+            <RmtInf>
+              <Ustrd>LIQUIDACION WOMPI LOTE</Ustrd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="COP">245000.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-02</Dt></BookgDt>
+        <ValDt><Dt>2026-10-02</Dt></ValDt>
+        <AcctSvcrRef>B2610020003</AcctSvcrRef>
+        <BkTxCd><Prtry><Cd>TRANSFERENCIA</Cd></Prtry></BkTxCd>
+        <NtryDtls>
+          <TxDtls>
+            <Refs>
+              <EndToEndId>PED-2026-117350</EndToEndId>
+            </Refs>
+            <RmtInf>
+              <Ustrd>ABONO PSE WOMPI</Ustrd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="COP">62300.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-05</Dt></BookgDt>
+        <ValDt><Dt>2026-10-05</Dt></ValDt>
+        <AcctSvcrRef>B2610050004</AcctSvcrRef>
+        <BkTxCd><Prtry><Cd>TRANSFERENCIA</Cd></Prtry></BkTxCd>
+        <NtryDtls>
+          <TxDtls>
+            <Refs>
+              <EndToEndId>PED-2026-121904</EndToEndId>
+            </Refs>
+            <RmtInf>
+              <Ustrd>ABONO PSE WOMPI</Ustrd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="COP">163573.74</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-05</Dt></BookgDt>
+        <ValDt><Dt>2026-10-05</Dt></ValDt>
+        <AcctSvcrRef>B2610050005</AcctSvcrRef>
+        <BkTxCd><Prtry><Cd>TRANSFERENCIA</Cd></Prtry></BkTxCd>
+        <NtryDtls>
+          <TxDtls>
+            <Refs>
+              <EndToEndId>PED-2026-126415</EndToEndId>
+            </Refs>
+            <RmtInf>
+              <Ustrd>ABONO WOMPI TARJETA</Ustrd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="COP">495801.80</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-06</Dt></BookgDt>
+        <ValDt><Dt>2026-10-06</Dt></ValDt>
+        <AcctSvcrRef>B2610060006</AcctSvcrRef>
+        <BkTxCd><Prtry><Cd>TRANSFERENCIA</Cd></Prtry></BkTxCd>
+        <NtryDtls>
+          <TxDtls>
+            <Refs>
+              <EndToEndId>PED-2026-118842</EndToEndId>
+            </Refs>
+            <RmtInf>
+              <Ustrd>ABONO WOMPI TARJETA</Ustrd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="COP">71133.75</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-07</Dt></BookgDt>
+        <ValDt><Dt>2026-10-07</Dt></ValDt>
+        <AcctSvcrRef>B2610070007</AcctSvcrRef>
+        <BkTxCd><Prtry><Cd>TRANSFERENCIA</Cd></Prtry></BkTxCd>
+        <NtryDtls>
+          <TxDtls>
+            <Refs>
+              <EndToEndId>PED-2026-140277</EndToEndId>
+            </Refs>
+            <RmtInf>
+              <Ustrd>ABONO WOMPI TARJETA</Ustrd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="COP">151032.11</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-08</Dt></BookgDt>
+        <ValDt><Dt>2026-10-08</Dt></ValDt>
+        <AcctSvcrRef>B2610080008</AcctSvcrRef>
+        <BkTxCd><Prtry><Cd>TRANSFERENCIA</Cd></Prtry></BkTxCd>
+        <NtryDtls>
+          <TxDtls>
+            <Refs>
+              <EndToEndId>WOMPI20261008</EndToEndId>
+            </Refs>
+            <RmtInf>
+              <Ustrd>LIQUIDACION WOMPI;</Ustrd>
+              <Ustrd>LOTE 3 TRX</Ustrd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="COP">48.00</Amt>
+        <CdtDbtInd>DBIT</CdtDbtInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-09</Dt></BookgDt>
+        <ValDt><Dt>2026-10-09</Dt></ValDt>
+        <AcctSvcrRef>B2610090009</AcctSvcrRef>
+        <BkTxCd><Prtry><Cd>GMF</Cd></Prtry></BkTxCd>
+        <NtryDtls>
+          <TxDtls>
+            <Refs>
+              <EndToEndId>NOTPROVIDED</EndToEndId>
+            </Refs>
+            <RmtInf>
+              <Ustrd>GMF 4X1000</Ustrd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="COP">190597.65</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-09</Dt></BookgDt>
+        <ValDt><Dt>2026-10-09</Dt></ValDt>
+        <AcctSvcrRef>B2610090010</AcctSvcrRef>
+        <BkTxCd><Prtry><Cd>TRANSFERENCIA</Cd></Prtry></BkTxCd>
+        <NtryDtls>
+          <TxDtls>
+            <Refs>
+              <EndToEndId>PED-2026-147390</EndToEndId>
+            </Refs>
+            <RmtInf>
+              <Ustrd>ABONO WOMPI TARJETA</Ustrd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="COP">350000.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-09</Dt></BookgDt>
+        <ValDt><Dt>2026-10-09</Dt></ValDt>
+        <AcctSvcrRef>B2610090011</AcctSvcrRef>
+        <BkTxCd><Prtry><Cd>EFECTIVO</Cd></Prtry></BkTxCd>
+        <NtryDtls>
+          <TxDtls>
+            <Refs>
+              <EndToEndId>NOTPROVIDED</EndToEndId>
+            </Refs>
+            <RmtInf>
+              <Ustrd>CONSIGNACION EFECTIVO OFICINA</Ustrd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="COP">410000.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-09</Dt></BookgDt>
+        <ValDt><Dt>2026-10-09</Dt></ValDt>
+        <AcctSvcrRef>B2610090012</AcctSvcrRef>
+        <BkTxCd><Prtry><Cd>TRANSFERENCIA</Cd></Prtry></BkTxCd>
+        <NtryDtls>
+          <TxDtls>
+            <Refs>
+              <EndToEndId>PED-2026-133018</EndToEndId>
+            </Refs>
+            <RmtInf>
+              <Ustrd>ABONO PSE WOMPI</Ustrd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="COP">302161.08</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-13</Dt></BookgDt>
+        <ValDt><Dt>2026-10-13</Dt></ValDt>
+        <AcctSvcrRef>B2610130013</AcctSvcrRef>
+        <BkTxCd><Prtry><Cd>TRANSFERENCIA</Cd></Prtry></BkTxCd>
+        <NtryDtls>
+          <TxDtls>
+            <Refs>
+              <EndToEndId>PED-2026-152936</EndToEndId>
+            </Refs>
+            <RmtInf>
+              <Ustrd>ABONO WOMPI TARJETA</Ustrd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="COP">135700.00</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-14</Dt></BookgDt>
+        <ValDt><Dt>2026-10-14</Dt></ValDt>
+        <AcctSvcrRef>B2610140014</AcctSvcrRef>
+        <BkTxCd><Prtry><Cd>TRANSFERENCIA</Cd></Prtry></BkTxCd>
+        <NtryDtls>
+          <TxDtls>
+            <Refs>
+              <EndToEndId>PED-2026-109</EndToEndId>
+            </Refs>
+            <RmtInf>
+              <Ustrd>ABONO TRANSFERENCIA</Ustrd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+      <Ntry>
+        <Amt Ccy="COP">213255.99</Amt>
+        <CdtDbtInd>CRDT</CdtDbtInd>
+        <Sts>BOOK</Sts>
+        <BookgDt><Dt>2026-10-14</Dt></BookgDt>
+        <ValDt><Dt>2026-10-14</Dt></ValDt>
+        <AcctSvcrRef>B2610140015</AcctSvcrRef>
+        <BkTxCd><Prtry><Cd>TRANSFERENCIA</Cd></Prtry></BkTxCd>
+        <NtryDtls>
+          <TxDtls>
+            <Refs>
+              <EndToEndId>WOMPI20261014</EndToEndId>
+            </Refs>
+            <RmtInf>
+              <Ustrd>LIQUIDACION WOMPI LOTE</Ustrd>
+            </RmtInf>
+          </TxDtls>
+        </NtryDtls>
+      </Ntry>
+    </Stmt>
+  </BkToCstmrStmt>
+</Document>
+`,
+  },
+  {
+    id: 'extracto-banco-breb',
+    nombre: 'Tienda La Ceiba: extracto con abonos Bre-B (octubre 2026)',
+    lado: 'banco',
+    plantillaId: 'banco-csv-generico',
+    archivo: 'extracto-banco-breb.csv',
+    texto: `FECHA;DESCRIPCION;REFERENCIA;VALOR;SALDO;REFERENCIA PAGO
+30/09/2026;SALDO ANTERIOR;;0,00;2.350.000,00;
+01/10/2026;ABONO PSE WOMPI;PED-2026-104823;89.500,00;2.439.500,00;
+02/10/2026;TRANSFERENCIA BRE-B LLAVE @LACEIBA;;245.000,00;2.684.500,00;PED-2026-117350
+05/10/2026;TRANSFERENCIA BRE-B LLAVE @LACEIBA;;62.300,00;2.746.800,00;PED-2026-121904
+09/10/2026;GMF 4X1000;;-48,00;2.746.752,00;
+09/10/2026;TRANSFERENCIA BRE-B LLAVE @LACEIBA;;410.000,00;3.156.752,00;PED-2026-133018
+15/10/2026;TOTAL ABONOS;;806.800,00;3.156.752,00;
+`,
+  },
 ];

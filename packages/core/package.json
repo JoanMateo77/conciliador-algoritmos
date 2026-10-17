@@ -1,8 +1,43 @@
 {
   "name": "@conciliador/core",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Motor de conciliación: estructuras propias, plantillas y cruce. Sin dependencias.",
+  "keywords": [
+    "conciliacion",
+    "colombia",
+    "pagos",
+    "asobancaria",
+    "wompi",
+    "bre-b",
+    "dian",
+    "bancos",
+    "extracto-bancario",
+    "typescript"
+  ],
+  "license": "MIT",
+  "author": "Joan Mateo Cardona Lorza",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/POR-COMPLETAR/conciliador.git",
+    "directory": "packages/core"
+  },
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
-  "license": "MIT"
+  "exports": {
+    ".": {
+      "conciliador-src": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  }
 }

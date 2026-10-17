@@ -1,5 +1,6 @@
-# Blueprint de Render para la API. Se construye desde la raíz porque el
+# Blueprint de Render: API web + worker de la cola. Se construyen desde la raíz porque el
 # monorepo usa npm workspaces (la API importa @conciliador/core y plantillas).
+# Las migraciones (apps/api/src/migraciones) corren solas al arrancar la API o el worker.
 services:
   - type: web
     name: conciliador-api
@@ -20,3 +21,29 @@ services:
         sync: false
       - key: CORS_ORIGEN
         sync: false
+      # Render genera el secreto una vez; el worker no lo necesita (no emite ni lee tokens).
+      - key: JWT_SECRETO
+        generateValue: true
+      # Detrás del proxy de Render la IP del cliente llega en X-Forwarded-For (límite de ingresos).
+      - key: CONFIAR_PROXY
+        value: "1"
+
+  # Proceso aparte que toma trabajos de la tabla `trabajos` (POST /conciliaciones?asincrono=1).
+  # Los workers en segundo plano de Render no tienen plan gratuito: 'starter' es el más pequeño.
+  - type: worker
+    name: worker
+    runtime: node
+    plan: starter
+    rootDir: ""
+    buildCommand: npm ci
+    startCommand: npm run worker -w apps/api
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      # Misma base que la API (copie el valor de conciliador-api).
+      - key: DATABASE_URL
+        sync: false
+      - key: WORKER_CONCURRENCIA
+        value: "1"

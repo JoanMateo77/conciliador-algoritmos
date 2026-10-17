@@ -348,8 +348,9 @@ describe('escenario Tienda La Ceiba (ESCENARIO.md)', () => {
     const p4 = { ...PERFIL_DEMO, toleranciaFaltantePorcentaje: 0.04 };
     const r = conciliar(banco, ventas, p4);
     verificarInvariantes(r, banco, ventas, p4);
-    // El faltante de 4,65 % no cabe en 4 %. El pase 3 puede hallar una suma casual de otras
-    // ventas (B8 lo hace), pero nunca la venta real y nunca como automática: queda para revisión.
+    // El faltante de 4,65 % no cabe en 4 %. Con cruceOptimo (por defecto) la referencia de B8 lo ata
+    // a su venta y queda sin cruzar (ver reglas.test.ts); con cruceOptimo false el pase 3 puede hallar,
+    // como en 0.1.0, una suma casual de otras ventas, pero nunca la venta real ni como automática.
     for (const [linea, ref] of [[8, 'PED2026118842'], [12, 'PED2026147390']] as const) {
       const c = deAbono(r, `banco-csv-generico:${linea}`);
       if (!c) continue;
@@ -357,6 +358,24 @@ describe('escenario Tienda La Ceiba (ESCENARIO.md)', () => {
       assert.equal(c.estado, 'sugerida');
     }
     assert.ok(r.sinCruzarBanco.includes('banco-csv-generico:12'));
+  });
+
+  test('par 1: con 4 % y cruceOptimo false el pase 3 se comporta como en 0.1.0', () => {
+    const { banco, ventas } = escenarioPar1();
+    const refDe = new Map(ventas.map((m) => [m.id, m.referencia]));
+    const p4 = { ...PERFIL_DEMO, toleranciaFaltantePorcentaje: 0.04, cruceOptimo: false };
+    const r = conciliar(banco, ventas, p4);
+    verificarInvariantes(r, banco, ventas, p4);
+    // 0.1.0 agrupaba B8 con tres ventas que no son la suya (puntaje 0,6255), solo como sugerida.
+    const b8 = deAbono(r, 'banco-csv-generico:8');
+    assert.ok(b8, 'B8 agrupa como en 0.1.0');
+    assert.equal(b8.tipo, 'agrupada');
+    assert.equal(b8.ventasIds.length, 3);
+    assert.equal(b8.estado, 'sugerida');
+    assert.ok(Math.abs(b8.puntaje - 0.6255) < 0.0001, `puntaje ${b8.puntaje}`);
+    assert.ok(!b8.ventasIds.some((id) => refDe.get(id) === 'PED2026118842'));
+    // Con el valor por defecto, la referencia de B8 manda y queda sin cruzar.
+    assert.ok(conciliar(banco, ventas, { ...p4, cruceOptimo: true }).sinCruzarBanco.includes('banco-csv-generico:8'));
   });
 
   test('par 1: el resultado no cambia en todo el rango de perfiles verificado', () => {
@@ -440,4 +459,22 @@ describe('determinismo e invariantes', () => {
     assert.ok(r.coincidencias.length > 200, `solo ${r.coincidencias.length} coincidencias`);
     assert.deepEqual(conciliar(banco, ventas, PERFIL_DEMO), r);
   });
+});
+
+// Revisión de 0.2.0: con cruceOptimo false el cruce por referencia de pago (Bre-B) también se apaga,
+// así un perfil del MVP da lo mismo que 0.1.0 aunque los movimientos traigan referenciaPago.
+test('referenciaPago solo manda cuando cruceOptimo está activo', () => {
+  const base = { descripcion: '', plantilla: 'p', linea: 1 };
+  const banco: Movimiento[] = [
+    { ...base, id: 'B1', lado: 'banco', fecha: '2026-10-05', montoCentavos: 5_000_000, referencia: 'TRF991', referenciaPago: 'PED1' },
+    { ...base, id: 'B2', lado: 'banco', fecha: '2026-10-05', montoCentavos: 5_000_000, referencia: 'TRF992' },
+  ];
+  const ventas: Movimiento[] = [
+    { ...base, id: 'V1', lado: 'ventas', fecha: '2026-10-03', montoCentavos: 5_000_000, referencia: 'PED1' },
+    { ...base, id: 'V2', lado: 'ventas', fecha: '2026-10-05', montoCentavos: 5_000_000, referencia: 'PED2' },
+  ];
+  const parejas = (perfil: Perfil) => conciliar(banco, ventas, perfil).coincidencias
+    .map((c) => `${c.bancoIds.join('+')}-${c.ventasIds.join('+')}:${c.tipo}`).sort();
+  assert.deepEqual(parejas({ ...PERFIL_POR_DEFECTO }), ['B1-V1:exacta', 'B2-V2:exacta']);
+  assert.deepEqual(parejas({ ...PERFIL_POR_DEFECTO, cruceOptimo: false }), ['B1-V2:exacta', 'B2-V1:tolerancia']);
 });

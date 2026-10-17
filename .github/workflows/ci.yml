@@ -1,5 +1,5 @@
-# Integración continua: pruebas del núcleo, plantillas y API (con PostgreSQL real)
-# y compilación del panel. Debe quedar en verde antes de mezclar una rama a main.
+# Integración continua: tipos, pruebas del núcleo, plantillas y API (con PostgreSQL real),
+# compilación de la librería publicable y del panel. Debe quedar en verde antes de mezclar una rama a main.
 name: CI
 
 on:
@@ -41,11 +41,15 @@ jobs:
       # npm ci instala exactamente lo que fija package-lock.json.
       - run: npm ci
 
+      - name: Revisar tipos
+        run: npm run typecheck
+
       - name: Pruebas (núcleo, plantillas y API con PostgreSQL)
         run: npm test
 
-      - name: Revisar tipos
-        run: npm run typecheck
+      # dist/ de core, plantillas, excel y dian, tal como se publicaría en npm.
+      - name: Compilar la librería
+        run: npm run build:lib
 
       - name: Compilar el panel
         run: npm run build:web

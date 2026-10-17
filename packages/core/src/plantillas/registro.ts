@@ -3,6 +3,7 @@
 // Detectar cuesta O(largo de las primeras líneas), sin importar cuántas plantillas haya.
 import { Trie } from '../estructuras/Trie.ts';
 import { detectarSeparador, normalizarEncabezado, parsearCSV, quitarBOM } from './csv.ts';
+import { obtenerLector } from './lectores.ts';
 import type { Plantilla } from './tipos.ts';
 import { validarPlantilla } from './validar.ts';
 
@@ -63,6 +64,17 @@ export class RegistroPlantillas {
         const esperados = new Set(this.#plantillas.get(id)!.detectar!.encabezados!.map(normalizarEncabezado)).size;
         subir(id, s.size / esperados);
       }
+    }
+
+    // Formatos con lector propio (MT940, camt.053) se reconocen por contenido, no por encabezados.
+    // Se pregunta una vez por tipo, aunque haya varias plantillas del mismo tipo.
+    const porTipo = new Map<string, number>();
+    for (const p of this.#plantillas.values()) {
+      const lector = obtenerLector(p.tipo);
+      if (!lector?.detectar) continue;
+      if (!porTipo.has(p.tipo)) porTipo.set(p.tipo, Math.min(1, Math.max(0, lector.detectar(texto))));
+      const c = porTipo.get(p.tipo)!;
+      if (c > 0) subir(p.id, c);
     }
 
     const orden = [...this.#plantillas.keys()];

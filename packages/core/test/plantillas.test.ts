@@ -146,7 +146,7 @@ describe('leerArchivo con las muestras incluidas', () => {
     for (const r of ['PED2026115090', 'PED2026139921', 'PED2026176613', 'PED2026188740']) assert.ok(!refs.includes(r), r);
     assert.deepEqual(movimientos[0], {
       id: '99999-1790846062-10000', lado: 'ventas', fecha: '2026-10-01', montoCentavos: 8_950_000,
-      referencia: 'PED2026104823', descripcion: 'PSE cliente01@ejemplo.test', plantilla: 'wompi-transacciones', linea: 2,
+      referencia: 'PED2026104823', descripcion: 'PSE cliente01@ejemplo.test', plantilla: 'wompi-transacciones', plantillaVersion: 1, linea: 2,
     });
     assert.equal(suma(movimientos), 336_360_000);
   });

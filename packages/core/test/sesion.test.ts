@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Movimiento } from '../src/modelo.ts';
-import { conciliar, PERFIL_POR_DEFECTO } from '../src/cruce/index.ts';
+import { conciliar, PERFIL_POR_DEFECTO, REGLA_GMF } from '../src/cruce/index.ts';
 import { SesionRevision } from '../src/sesion.ts';
 
 // Datos sintéticos.
@@ -134,5 +134,39 @@ describe('SesionRevision', () => {
     sesion.rechazar('c1');
     sesion.coincidencias()[0].bancoIds.push('X');
     assert.deepEqual(resultado, copia);
+  });
+});
+
+describe('SesionRevision: clasificados y motivos (fases 10 y 11)', () => {
+  test('lista los clasificados y explica por qué algo está libre', () => {
+    const { banco, ventas } = preparar();
+    const gmf = mov('banco', 'G1', '2026-10-04', -400_00);
+    gmf.descripcion = 'GMF 4X1000';
+    const conGmf = [...banco, gmf];
+    const resultado = conciliar(conGmf, ventas, {
+      ...PERFIL_POR_DEFECTO, toleranciaFaltantePorcentaje: 0.035, maxGrupo: 1, reglas: [REGLA_GMF],
+    });
+    const sesion = new SesionRevision(resultado);
+    assert.deepEqual(sesion.clasificados(), [{ id: 'G1', lado: 'banco', categoria: 'gasto:GMF', reglaId: 'gmf-4x1000' }]);
+    assert.match(sesion.motivo('G1', 'banco')!, /Clasificado como gasto:GMF/);
+    assert.equal(sesion.motivo('B3', 'banco'), resultado.motivos!.B3);
+    assert.equal(sesion.motivo('B1', 'banco'), null, 'está en c1');
+    sesion.rechazar('c1');
+    assert.equal(sesion.motivo('B1', 'banco'), 'Quedó libre al rechazar c1.');
+    assert.equal(sesion.motivo('V1', 'ventas'), 'Quedó libre al rechazar c1.');
+    sesion.deshacer();
+    assert.equal(sesion.motivo('B1', 'banco'), null);
+    // Emparejar a mano un clasificado lo saca de la lista.
+    sesion.emparejarManual(['G1'], ['V3'], conGmf, ventas);
+    assert.deepEqual(sesion.clasificados(), []);
+  });
+
+  test('un resultado guardado antes de la fase 10 (sin clasificados ni motivos) sigue funcionando', () => {
+    const { resultado } = preparar();
+    const { clasificados: _c, motivos: _m, ...viejo } = resultado;
+    const sesion = new SesionRevision(viejo);
+    assert.deepEqual(sesion.clasificados(), []);
+    assert.equal(sesion.motivo('B3', 'banco'), null);
+    assert.deepEqual(sesion.sinCruzar(), { banco: ['B3'], ventas: ['V3'] });
   });
 });

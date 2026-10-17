@@ -2,7 +2,7 @@ import { useId, useState } from 'react';
 import type { DragEvent } from 'react';
 import { formatearCOP } from '@conciliador/core';
 import type { Lado, Perfil, Plantilla } from '@conciliador/core';
-import { leerBytes, porcentaje } from '../archivos.ts';
+import { decodificar, leerBytes, porcentaje } from '../archivos.ts';
 import { DEMOS } from '../perfiles.ts';
 import type { Avisar, Carga, Lectura } from '../tipos.ts';
 
@@ -14,6 +14,7 @@ interface Props {
   hayResultado: boolean;
   onCarga: (lado: Lado, carga: Carga | null) => void;
   onDemo: (demoId: string) => void;
+  onDemoB2B: () => void;
   onConciliar: () => void;
   onIrPerfil: () => void;
   avisar: Avisar;
@@ -37,12 +38,13 @@ export function Cargar(props: Props) {
             {DEMOS.map((d) => <option key={d.id} value={d.id}>{d.titulo}</option>)}
           </select>
           <button type="button" className="boton boton--secundario" onClick={() => props.onDemo(demo)}>Usar datos de demo</button>
+          <button type="button" className="boton boton--secundario" onClick={props.onDemoB2B}>Demo B2B con facturas DIAN</button>
         </div>
       </div>
 
       <div className="rejilla-2">
-        <ZonaArchivo titulo="Banco" ayuda="Extracto o recaudo (CSV, TXT)" lado="banco" lectura={lecturas.banco} plantillas={plantillas} onCarga={props.onCarga} avisar={props.avisar} />
-        <ZonaArchivo titulo="Ventas" ayuda="Pasarela de pagos o ERP (CSV)" lado="ventas" lectura={lecturas.ventas} plantillas={plantillas} onCarga={props.onCarga} avisar={props.avisar} />
+        <ZonaArchivo titulo="Banco" ayuda="Extracto o recaudo: CSV, TXT, Excel (.xlsx, .xls), MT940 (.sta, .940) o camt.053 (.xml)" lado="banco" lectura={lecturas.banco} plantillas={plantillas} onCarga={props.onCarga} avisar={props.avisar} />
+        <ZonaArchivo titulo="Ventas" ayuda="Pasarela, ERP (CSV o Excel) o facturas electrónicas DIAN (varios .xml a la vez)" lado="ventas" lectura={lecturas.ventas} plantillas={plantillas} onCarga={props.onCarga} avisar={props.avisar} />
       </div>
 
       <div className="barra-accion">
@@ -71,26 +73,76 @@ interface ZonaProps {
 
 const MAX_ERRORES = 30;
 
+const ACEPTA = {
+  banco: '.csv,.txt,.tsv,.xlsx,.xls,.sta,.940,.mt940,.xml,text/csv,text/plain,application/xml,text/xml',
+  ventas: '.csv,.txt,.tsv,.xlsx,.xls,.xml,text/csv,text/plain,application/xml,text/xml',
+};
+
+const esExcel = (nombre: string) => /\.(xlsx|xls)$/i.test(nombre);
+// Una factura UBL (o el AttachedDocument con que se envía) se reconoce por su raíz y el namespace de OASIS.
+const esFacturaUBL = (texto: string) =>
+  /urn:oasis:names:specification:ubl/.test(texto) && /<(?:[\w-]+:)?(Invoice|CreditNote|DebitNote|AttachedDocument)[\s>]/.test(texto);
+
+// SheetJS pesa cientos de KB: se carga solo cuando alguien suelta un Excel.
+async function convertirExcel(bytes: Uint8Array, hoja?: string): Promise<{ hojas: string[]; texto: string }> {
+  const { leerExcel } = await import('@conciliador/excel');
+  return leerExcel(bytes, hoja ? { hoja } : {});
+}
+
 function ZonaArchivo({ titulo, ayuda, lado, lectura, plantillas, onCarga, avisar }: ZonaProps) {
   const [encima, setEncima] = useState(false);
   const idInput = useId();
   const idSelector = useId();
+  const idHoja = useId();
 
-  const tomarArchivo = async (archivo: File | undefined) => {
+  const tomarArchivos = async (lista: FileList | null | undefined) => {
+    const archivos = lista ? [...lista] : [];
+    const archivo = archivos[0];
     if (!archivo) return;
     try {
+      // Facturas DIAN: todos los XML soltados juntos forman el lado ventas.
+      if (lado === 'ventas') {
+        const xmls = archivos.filter((a) => /\.xml$/i.test(a.name));
+        if (xmls.length > 0) {
+          const facturas = await Promise.all(xmls.map(async (a) => ({ nombre: a.name, texto: decodificar(await leerBytes(a)) })));
+          if (facturas.some((f) => esFacturaUBL(f.texto))) {
+            const nombre = facturas.length === 1 ? facturas[0].nombre : `${facturas.length} facturas DIAN (XML)`;
+            onCarga(lado, { nombre, facturas, plantillaElegida: null });
+            avisar(`Facturas electrónicas cargadas: ${facturas.length} documento${facturas.length === 1 ? '' : 's'}.`);
+            return;
+          }
+        }
+      }
+      if (archivos.length > 1) avisar('Solo se usa el primer archivo; varios a la vez solo aplica a facturas DIAN (.xml).');
       const bytes = await leerBytes(archivo);
+      if (esExcel(archivo.name)) {
+        const { hojas, texto } = await convertirExcel(bytes);
+        onCarga(lado, { nombre: archivo.name, bytes, textoFijo: texto, excel: { hojas, hoja: hojas[0] }, plantillaElegida: null });
+        avisar(`Excel de ${titulo.toLowerCase()} cargado: ${archivo.name} (${hojas.length} hoja${hojas.length === 1 ? '' : 's'}).`);
+        return;
+      }
       onCarga(lado, { nombre: archivo.name, bytes, plantillaElegida: null });
       avisar(`Archivo de ${titulo.toLowerCase()} cargado: ${archivo.name}.`);
-    } catch {
-      avisar(`No se pudo leer ${archivo.name}.`, 'error');
+    } catch (e) {
+      avisar(`No se pudo leer ${archivo.name}: ${(e as Error).message}`, 'error');
+    }
+  };
+
+  const cambiarHoja = async (hoja: string) => {
+    const carga = lectura?.carga;
+    if (!carga?.excel || !carga.bytes) return;
+    try {
+      const { hojas, texto } = await convertirExcel(carga.bytes, hoja);
+      onCarga(lado, { ...carga, textoFijo: texto, excel: { hojas, hoja }, plantillaElegida: null });
+    } catch (e) {
+      avisar(`No se pudo leer la hoja «${hoja}»: ${(e as Error).message}`, 'error');
     }
   };
 
   const alSoltar = (e: DragEvent) => {
     e.preventDefault();
     setEncima(false);
-    void tomarArchivo(e.dataTransfer.files[0]);
+    void tomarArchivos(e.dataTransfer.files);
   };
 
   const movimientos = lectura?.ingesta.movimientos ?? [];
@@ -108,7 +160,7 @@ function ZonaArchivo({ titulo, ayuda, lado, lectura, plantillas, onCarga, avisar
         onDragLeave={() => setEncima(false)}
         onDrop={alSoltar}
       >
-        <p>{lectura ? <strong>{lectura.carga.nombre}</strong> : 'Arrastra aquí el archivo'}</p>
+        <p>{lectura ? <strong>{lectura.carga.nombre}</strong> : lado === 'ventas' ? 'Arrastra aquí el archivo o las facturas' : 'Arrastra aquí el archivo'}</p>
         <p className="suave">{ayuda}</p>
         <label htmlFor={idInput} className="boton boton--secundario">
           {lectura ? 'Cambiar archivo' : 'Elegir archivo'}
@@ -117,8 +169,9 @@ function ZonaArchivo({ titulo, ayuda, lado, lectura, plantillas, onCarga, avisar
           id={idInput}
           className="sr-only"
           type="file"
-          accept=".csv,.txt,.tsv,text/csv,text/plain"
-          onChange={(e) => { void tomarArchivo(e.target.files?.[0]); e.target.value = ''; }}
+          accept={ACEPTA[lado]}
+          multiple={lado === 'ventas'}
+          onChange={(e) => { void tomarArchivos(e.target.files); e.target.value = ''; }}
         />
         {lectura && (
           <button type="button" className="enlace" onClick={() => onCarga(lado, null)}>Quitar archivo</button>
@@ -127,6 +180,20 @@ function ZonaArchivo({ titulo, ayuda, lado, lectura, plantillas, onCarga, avisar
 
       {lectura && (
         <div className="lectura">
+          {lectura.formato === 'dian' ? (
+            <p className="suave">
+              <span className="insignia insignia--confirmada">DIAN</span>{' '}
+              Facturas electrónicas UBL 2.1: total a pagar como monto, número de factura como referencia y CUFE como documento.
+            </p>
+          ) : (<>
+          {lectura.carga.excel && (
+            <div className="campo">
+              <label htmlFor={idHoja}>Hoja del Excel</label>
+              <select id={idHoja} value={lectura.carga.excel.hoja} onChange={(e) => void cambiarHoja(e.target.value)}>
+                {lectura.carga.excel.hojas.map((h) => <option key={h} value={h}>{h}</option>)}
+              </select>
+            </div>
+          )}
           <div className="campo">
             <label htmlFor={idSelector}>Plantilla</label>
             <select
@@ -153,6 +220,7 @@ function ZonaArchivo({ titulo, ayuda, lado, lectura, plantillas, onCarga, avisar
           {lectura.otroLado && (
             <p className="alerta">Este archivo parece de {lectura.otroLado.lado === 'banco' ? 'banco' : 'ventas'} ({lectura.otroLado.nombre}). ¿Lo pusiste en la zona correcta?</p>
           )}
+          </>)}
 
           <dl className="cifras">
             <div><dt>Movimientos</dt><dd>{movimientos.length}</dd></div>

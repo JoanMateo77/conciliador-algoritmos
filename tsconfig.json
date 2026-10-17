@@ -16,11 +16,18 @@
     ],
     "types": [
       "node"
+    ],
+    "customConditions": [
+      "conciliador-src"
     ]
   },
   "include": [
     "packages",
     "apps/api",
     "scripts"
+  ],
+  "exclude": [
+    "**/node_modules",
+    "**/dist"
   ]
 }

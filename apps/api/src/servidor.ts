@@ -3,6 +3,7 @@ import http from 'node:http';
 import { pathToFileURL } from 'node:url';
 import type { Pool } from 'pg';
 import { aplicarEsquema, crearPool } from './bd.ts';
+import { registrar } from './registros.ts';
 import { crearManejador, registroPlantillas } from './rutas.ts';
 import type { OpcionesRutas } from './rutas.ts';
 
@@ -19,15 +20,16 @@ export async function iniciar(): Promise<{ servidor: http.Server; pool: Pool | n
   registroPlantillas(); // falla aquí, no en la primera petición, si una plantilla es inválida
   const pool = crearPool(process.env.DATABASE_URL);
   if (pool) await aplicarEsquema(pool);
-  else console.warn('Sin DATABASE_URL: modo memoria (no se guardan conciliaciones).');
+  else registrar('aviso', 'modo_memoria', { mensaje: 'Sin DATABASE_URL: no se guardan conciliaciones.' });
 
   const servidor = crearServidor({ pool, corsOrigen: process.env.CORS_ORIGEN ?? '*' });
   const puerto = Number(process.env.PORT ?? 3000);
   await new Promise<void>((resolver) => servidor.listen(puerto, resolver));
-  console.log(`API escuchando en el puerto ${puerto} (base de datos: ${pool ? 'sí' : 'no'})`);
+  registrar('info', 'api_iniciada', { puerto, baseDeDatos: pool !== null });
 
   // Render manda SIGTERM al redesplegar: se terminan las peticiones en curso y se cierra el pool.
   const apagar = () => {
+    registrar('info', 'api_apagando');
     servidor.close(() => { void (pool?.end() ?? Promise.resolve()).then(() => process.exit(0)); });
     setTimeout(() => process.exit(1), 10_000).unref();
   };
@@ -40,7 +42,7 @@ export async function iniciar(): Promise<{ servidor: http.Server; pool: Pool | n
 const esPrincipal = process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (esPrincipal) {
   iniciar().catch((error) => {
-    console.error('No se pudo iniciar la API:', error);
+    registrar('error', 'api_no_inicio', { error });
     process.exit(1);
   });
 }

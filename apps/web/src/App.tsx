@@ -28,13 +28,13 @@ import { Servidor } from './componentes/Servidor.tsx';
 const API_URL: string | undefined = import.meta.env?.VITE_API_URL || undefined;
 
 const PESTANAS: { id: Pestana; titulo: string }[] = [
-  { id: 'cargar', titulo: '1. Cargar' },
-  { id: 'perfil', titulo: '2. Perfil' },
-  { id: 'resultados', titulo: '3. Resultados' },
-  { id: 'grafo', titulo: '4. Grafo' },
-  { id: 'plantillas', titulo: '5. Plantillas' },
+  { id: 'cargar', titulo: 'Cargar' },
+  { id: 'perfil', titulo: 'Perfil' },
+  { id: 'resultados', titulo: 'Resultados' },
+  { id: 'grafo', titulo: 'Grafo' },
+  { id: 'plantillas', titulo: 'Plantillas' },
   // El modo servidor solo existe si el panel se compiló con VITE_API_URL.
-  ...(API_URL ? [{ id: 'servidor' as const, titulo: '6. Servidor' }] : []),
+  ...(API_URL ? [{ id: 'servidor' as const, titulo: 'Servidor' }] : []),
 ];
 
 // Ejemplo de regla de la fase 10: una consignación en efectivo no es el pago de una venta en línea.
@@ -297,22 +297,28 @@ export function App() {
           </div>
         </div>
         <p className="privacidad">
-          <span aria-hidden="true">🔒</span> Tus archivos no salen de tu computador: todo se procesa en este navegador.
+          <span aria-hidden="true">🔒</span> Tus archivos no salen de tu computador<span className="privacidad__mas">: todo se procesa en este navegador</span>.
         </p>
       </header>
 
       <nav className="pestanas" aria-label="Pasos">
-        {PESTANAS.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            className="pestana"
-            aria-current={pestana === p.id ? 'page' : undefined}
-            onClick={() => setPestana(p.id)}
-          >
-            {p.titulo}
-          </button>
-        ))}
+        {PESTANAS.map((p, i) => {
+          // Los pasos que ya tienen lo necesario se marcan, así se ve de un vistazo qué falta.
+          const hecho = (p.id === 'cargar' && listas) || ((p.id === 'resultados' || p.id === 'grafo') && Boolean(trabajo));
+          return (
+            <button
+              key={p.id}
+              type="button"
+              className={`pestana ${hecho ? 'pestana--hecha' : ''}`}
+              aria-current={pestana === p.id ? 'page' : undefined}
+              onClick={() => setPestana(p.id)}
+            >
+              <span className="pestana__num" aria-hidden="true">{hecho ? '✓' : i + 1}</span>
+              <span>{p.titulo}</span>
+              {hecho && <span className="sr-only"> (listo)</span>}
+            </button>
+          );
+        })}
       </nav>
 
       <p className={`aviso ${aviso ? 'aviso--visible' : ''} ${aviso?.tipo === 'error' ? 'aviso--error' : ''}`} role="status" aria-live="polite">

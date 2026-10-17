@@ -24,6 +24,8 @@ export function Cargar(props: Props) {
   const { lecturas, plantillas, perfil, listas, hayResultado } = props;
   const [demo, setDemo] = useState(DEMOS[0].id);
   const idDemo = useId();
+  const idMotivo = useId();
+  const motivo = listas ? null : motivoBloqueo(lecturas);
 
   return (
     <section aria-labelledby="titulo-cargar">
@@ -47,18 +49,31 @@ export function Cargar(props: Props) {
         <ZonaArchivo titulo="Ventas" ayuda="Pasarela, ERP (CSV o Excel) o facturas electrónicas DIAN (varios .xml a la vez)" lado="ventas" lectura={lecturas.ventas} plantillas={plantillas} onCarga={props.onCarga} avisar={props.avisar} />
       </div>
 
-      <div className="barra-accion">
-        <p className="suave">
-          Perfil activo: <strong>{perfil.nombre}</strong> · tolerancia {porcentaje(perfil.toleranciaFaltantePorcentaje, 1)} · ventana {perfil.ventanaDias} días.{' '}
-          <button type="button" className="enlace" onClick={props.onIrPerfil}>Cambiar perfil</button>
-        </p>
-        <button type="button" className="boton" disabled={!listas} onClick={props.onConciliar}>
+      <div className="barra-accion barra-accion--fija">
+        <div className="barra-accion__texto">
+          <p className="suave">
+            Perfil activo: <strong>{perfil.nombre}</strong> · tolerancia {porcentaje(perfil.toleranciaFaltantePorcentaje, 1)} · ventana {perfil.ventanaDias} días.{' '}
+            <button type="button" className="enlace" onClick={props.onIrPerfil}>Cambiar perfil</button>
+          </p>
+          {motivo && <p id={idMotivo} className="barra-accion__motivo">{motivo}</p>}
+          {!motivo && hayResultado && <p className="suave nota">Volver a conciliar reemplaza las decisiones de revisión actuales.</p>}
+        </div>
+        <button type="button" className="boton boton--grande" disabled={!listas} aria-describedby={motivo ? idMotivo : undefined} onClick={props.onConciliar}>
           {hayResultado ? 'Conciliar de nuevo' : 'Conciliar'}
         </button>
       </div>
-      {hayResultado && <p className="suave nota">Volver a conciliar reemplaza las decisiones de revisión actuales.</p>}
     </section>
   );
+}
+
+// Un botón deshabilitado sin explicación obliga a adivinar: se dice qué falta.
+function motivoBloqueo(lecturas: Props['lecturas']): string {
+  const falta = (l: Lectura | null, nombre: string) =>
+    !l ? `falta el archivo de ${nombre}` : l.ingesta.movimientos.length === 0 ? `el archivo de ${nombre} no tiene movimientos válidos (revisa la plantilla)` : null;
+  const faltas = [falta(lecturas.banco, 'banco'), falta(lecturas.ventas, 'ventas')].filter(Boolean);
+  if (!lecturas.banco && !lecturas.ventas) return 'Para conciliar, carga los dos archivos o usa los datos de demo.';
+  const texto = faltas.join(' y ');
+  return `Para conciliar: ${texto}.`;
 }
 
 interface ZonaProps {
@@ -155,11 +170,12 @@ function ZonaArchivo({ titulo, ayuda, lado, lectura, plantillas, onCarga, avisar
     <article className="tarjeta zona">
       <h3>{titulo}</h3>
       <div
-        className={`soltar ${encima ? 'soltar--encima' : ''}`}
+        className={`soltar ${encima ? 'soltar--encima' : ''} ${lectura ? 'soltar--cargado' : ''}`}
         onDragOver={(e) => { e.preventDefault(); setEncima(true); }}
         onDragLeave={() => setEncima(false)}
         onDrop={alSoltar}
       >
+        <span className="soltar__icono" aria-hidden="true">{lectura ? '✓' : '↑'}</span>
         <p>{lectura ? <strong>{lectura.carga.nombre}</strong> : lado === 'ventas' ? 'Arrastra aquí el archivo o las facturas' : 'Arrastra aquí el archivo'}</p>
         <p className="suave">{ayuda}</p>
         <label htmlFor={idInput} className="boton boton--secundario">

@@ -204,9 +204,10 @@ export function PerfilFormulario({ perfil, onCambiar, hayResultado, listas, onCo
             Valores por defecto
           </button>
           {guardados[perfil.id] && <button type="button" className="boton boton--peligro" onClick={eliminar}>Eliminar perfil</button>}
-          {hayResultado && listas && <button type="button" className="boton boton--secundario" onClick={onConciliar}>Conciliar de nuevo con este perfil</button>}
+          {listas && <button type="button" className="boton boton--secundario" onClick={onConciliar}>{hayResultado ? 'Conciliar de nuevo con este perfil' : 'Conciliar con este perfil'}</button>}
         </div>
         {hayResultado && <p className="suave nota">Los cambios se aplican al volver a conciliar.</p>}
+        {!listas && <p className="suave nota">Cuando los dos archivos estén cargados podrás conciliar desde aquí.</p>}
       </form>
     </section>
   );

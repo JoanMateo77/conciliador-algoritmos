@@ -1,4 +1,4 @@
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { validarPlantilla } from '@conciliador/core';
 import type { Plantilla } from '@conciliador/core';
 import { decodificar, descargarJSON, leerBytes } from '../archivos.ts';
@@ -69,8 +69,7 @@ export function Plantillas({ plantillas, propias, idsIncluidas, onGuardarPropias
             <p className="suave">
               {p.lado === 'banco' ? 'Banco' : 'Ventas'} · {NOMBRE_TIPO_PLANTILLA[p.tipo] ?? p.tipo}{p.formatoFecha ? ` · fechas ${p.formatoFecha}` : ''} · versión {p.version}
             </p>
-            {p.descripcion && <p>{p.descripcion}</p>}
-            {p.fuente && <p className="ayuda">Fuente: {p.fuente}</p>}
+            {(p.descripcion || p.fuente) && <Descripcion nombre={p.nombre} texto={p.descripcion} fuente={p.fuente} />}
             <div className="acciones">
               <button type="button" className="boton boton--secundario boton--pequeno" onClick={() => descargarJSON(`${p.id}.json`, p)}>
                 Exportar JSON <span className="sr-only">de {p.nombre}</span>
@@ -87,5 +86,22 @@ export function Plantillas({ plantillas, propias, idsIncluidas, onGuardarPropias
 
       <AsistentePlantilla idsOcupados={idsIncluidas} idsPropios={propias.map((p) => p.id)} onGuardar={agregar} avisar={avisar} />
     </section>
+  );
+}
+
+// Las descripciones largas hacían tarjetas de alturas muy distintas: se muestran tres líneas y el resto a pedido.
+function Descripcion({ nombre, texto, fuente }: { nombre: string; texto?: string; fuente?: string }) {
+  const [abierta, setAbierta] = useState(false);
+  const larga = (texto?.length ?? 0) > 160 || Boolean(fuente);
+  return (
+    <div className="descripcion">
+      {texto && <p className={larga && !abierta ? 'descripcion__texto--corta' : undefined}>{texto}</p>}
+      {abierta && fuente && <p className="ayuda">Fuente: {fuente}</p>}
+      {larga && (
+        <button type="button" className="enlace descripcion__mas" aria-expanded={abierta} onClick={() => setAbierta(!abierta)}>
+          {abierta ? 'Ver menos' : 'Ver más'} <span className="sr-only">sobre {nombre}</span>
+        </button>
+      )}
+    </div>
   );
 }

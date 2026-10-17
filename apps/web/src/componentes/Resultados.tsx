@@ -104,11 +104,13 @@ function ResultadosConTrabajo({ trabajo, seleccionada, onSeleccionar, onCambio, 
         <Tarjeta titulo="Confirmadas" valor={cuenta('confirmada')} tono="ok" />
         <Tarjeta titulo="Sin cruzar" valor={sinCruzar.banco.length + sinCruzar.ventas.length} tono="error" detalle={`${sinCruzar.banco.length} banco · ${sinCruzar.ventas.length} ventas`} />
         {clasificados.length > 0 && <Tarjeta titulo="Clasificados" valor={clasificados.length} detalle="por reglas del perfil" />}
+      </div>
+      <div className="resumen resumen--montos">
         <Tarjeta titulo="Total banco" valor={formatearCOP(resultado.resumen.totalBancoCentavos)} detalle={`${resultado.resumen.movimientosBanco} abonos`} />
         <Tarjeta titulo="Total ventas" valor={formatearCOP(resultado.resumen.totalVentasCentavos)} detalle={`${resultado.resumen.movimientosVentas} ventas`} />
         <Tarjeta titulo="Conciliado" valor={formatearCOP(conciliadoBanco)} detalle={`diferencia ${formatearCOP(conciliadoBanco - conciliadoVentas)}`} />
       </div>
-      <p className="ayuda">Atajos: Ctrl+Z deshace y Ctrl+Shift+Z rehace (Cmd en Mac).</p>
+      <p className="ayuda">Atajos: <kbd>Ctrl</kbd>+<kbd>Z</kbd> deshace y <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> rehace (<kbd>Cmd</kbd> en Mac).</p>
 
       <div className="rejilla-detalle">
         <div className="tarjeta">
@@ -218,11 +220,11 @@ function Detalle({ fila, mapaBanco, mapaVentas, onDecidir }: {
   onDecidir: (accion: 'confirmar' | 'rechazar', id: string) => void;
 }) {
   if (!fila) {
-    return <aside className="tarjeta detalle" aria-label="Detalle"><p className="suave">Elige una coincidencia para ver sus movimientos y la explicación.</p></aside>;
+    return <section className="tarjeta detalle" aria-label="Detalle"><p className="suave">Elige una coincidencia para ver sus movimientos y la explicación.</p></section>;
   }
   const cerrada = fila.estadoRevision === 'rechazada';
   return (
-    <aside className="tarjeta detalle" aria-labelledby="titulo-detalle">
+    <section className="tarjeta detalle" aria-labelledby="titulo-detalle">
       <div className="detalle__cabeza">
         <h3 id="titulo-detalle">Coincidencia {fila.id}</h3>
         <Estado estado={fila.estadoRevision} />
@@ -245,7 +247,7 @@ function Detalle({ fila, mapaBanco, mapaVentas, onDecidir }: {
           Rechazar
         </button>
       </div>
-    </aside>
+    </section>
   );
 }
 

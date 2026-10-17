@@ -19,6 +19,15 @@ medio (0.2 → 0.3) y una corrección sube el último.
   de `DATABASE_URL` para que todas las instancias acepten los mismos tokens.
   Guía: `docs/DESPLIEGUE_VERCEL.md`.
 
+- Panel rediseñado tras una revisión de UX: cabecera de marca, pestañas
+  numeradas que marcan los pasos listos (en móvil pasan a rejilla y ya no se
+  esconden), barra fija con «Conciliar» que dice qué falta cuando está
+  deshabilitado, «Conciliar con este perfil» desde Perfil, montos del resumen
+  en su propia fila sin partirse, errores de lectura en un recuadro visible,
+  descripciones de plantillas con «Ver más», atajos con `<kbd>` y tablas con
+  filas alternas. El detalle de una coincidencia pasa de `<aside>` a
+  `<section>` (axe: landmark dentro de `main`).
+
 ### Seguridad
 
 - Regex de usuario (reglas del perfil y plantillas) protegidas contra ReDoS con

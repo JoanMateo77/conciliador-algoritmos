@@ -175,7 +175,9 @@ function ZonaArchivo({ titulo, ayuda, lado, lectura, plantillas, onCarga, avisar
         onDragLeave={() => setEncima(false)}
         onDrop={alSoltar}
       >
-        <span className="soltar__icono" aria-hidden="true">{lectura ? '✓' : '↑'}</span>
+        <svg className="soltar__icono" viewBox="0 0 20 20" aria-hidden="true">
+          {lectura ? <path d="M5 10.5l3.2 3.2L15 7" /> : <path d="M10 13V4m0 0L6.5 7.5M10 4l3.5 3.5M4 13.5V15a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-1.5" />}
+        </svg>
         <p>{lectura ? <strong>{lectura.carga.nombre}</strong> : lado === 'ventas' ? 'Arrastra aquí el archivo o las facturas' : 'Arrastra aquí el archivo'}</p>
         <p className="suave">{ayuda}</p>
         <label htmlFor={idInput} className="boton boton--secundario">

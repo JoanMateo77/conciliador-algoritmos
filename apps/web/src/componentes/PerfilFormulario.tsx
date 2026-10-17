@@ -5,6 +5,8 @@ import { guardar } from '../almacen.ts';
 import { aSlug } from '../archivos.ts';
 import { guardarPerfiles, perfilesGuardados } from '../perfiles.ts';
 import type { Avisar } from '../tipos.ts';
+import { ReglasEditor } from './ReglasEditor.tsx';
+import { TarifasEditor } from './TarifasEditor.tsx';
 
 interface Props {
   perfil: Perfil;
@@ -165,6 +167,30 @@ export function PerfilFormulario({ perfil, onCambiar, hayResultado, listas, onCo
             Agregar retención
           </button>
         </fieldset>
+
+        <fieldset>
+          <legend>Asignación</legend>
+          <label className="interruptor">
+            <input type="checkbox" role="switch" checked={perfil.cruceOptimo !== false}
+              aria-describedby={`${base}-hungaro-ayuda`}
+              onChange={(e) => cambiar('cruceOptimo', e.target.checked)} />
+            <span className="interruptor__pista" aria-hidden="true" />
+            <span>Asignación óptima (Húngaro)</span>
+          </label>
+          <p id={`${base}-hungaro-ayuda`} className="ayuda">
+            Encendido, cada grupo de candidatos en conflicto (hasta 60 movimientos) se resuelve con el algoritmo Húngaro, que
+            maximiza el puntaje total, y se buscan cruces agrupados N:M. Apagado, se asigna de mayor a menor puntaje (greedy, como el MVP).
+          </p>
+        </fieldset>
+
+        <ReglasEditor reglas={perfil.reglas ?? []} onCambiar={(reglas) => cambiar('reglas', reglas.length > 0 ? reglas : undefined)} />
+
+        <TarifasEditor
+          tarifas={perfil.tarifas ?? []}
+          municipio={perfil.municipio ?? ''}
+          onCambiar={(tarifas) => cambiar('tarifas', tarifas.length > 0 ? tarifas : undefined)}
+          onMunicipio={(m) => cambiar('municipio', m.trim() ? m : undefined)}
+        />
 
         {errores.length > 0 && (
           <ul className="errores" role="alert">

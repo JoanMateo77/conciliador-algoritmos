@@ -1,6 +1,6 @@
 import { useId, useMemo, useState } from 'react';
 import { formatearCOP } from '@conciliador/core';
-import type { Coincidencia, Evento, Movimiento } from '@conciliador/core';
+import type { Clasificado, Coincidencia, Evento, Movimiento } from '@conciliador/core';
 import { PLANTILLAS } from '@conciliador/plantillas';
 import { porcentaje } from '../archivos.ts';
 import type { Avisar, Trabajo } from '../tipos.ts';
@@ -15,13 +15,14 @@ interface Props {
   onIrCargar: () => void;
   onIrGrafo: () => void;
   apiUrl?: string;
+  token?: string;
   avisar: Avisar;
 }
 
 type FilaRevision = Coincidencia & { estadoRevision: string };
 
 export const NOMBRE_TIPO: Record<string, string> = {
-  exacta: 'Exacta', tolerancia: 'Con tolerancia', agrupada: 'Agrupada', manual: 'Manual',
+  exacta: 'Exacta', tolerancia: 'Con tolerancia', agrupada: 'Agrupada', agrupadaNM: 'Agrupada N:M', manual: 'Manual',
 };
 export const NOMBRE_ESTADO: Record<string, string> = {
   automatica: 'Automática', sugerida: 'Sugerida', confirmada: 'Confirmada', rechazada: 'Rechazada',
@@ -45,7 +46,7 @@ export function Resultados(props: Props) {
   return <ResultadosConTrabajo {...props} trabajo={trabajo} />;
 }
 
-function ResultadosConTrabajo({ trabajo, seleccionada, onSeleccionar, onCambio, onDeshacer, onRehacer, onIrGrafo, apiUrl, avisar }: Props & { trabajo: Trabajo }) {
+function ResultadosConTrabajo({ trabajo, seleccionada, onSeleccionar, onCambio, onDeshacer, onRehacer, onIrGrafo, apiUrl, token, avisar }: Props & { trabajo: Trabajo }) {
   const { sesion, resultado } = trabajo;
   const [filtroTipo, setFiltroTipo] = useState('todos');
   const [filtroEstado, setFiltroEstado] = useState('todos');
@@ -58,6 +59,7 @@ function ResultadosConTrabajo({ trabajo, seleccionada, onSeleccionar, onCambio, 
   // La sesión cambia por dentro; se lee en cada render (el padre fuerza el render tras cada decisión).
   const filas: FilaRevision[] = sesion.coincidencias();
   const sinCruzar = sesion.sinCruzar();
+  const clasificados = sesion.clasificados();
   const cuenta = (estado: string) => filas.filter((f) => f.estadoRevision === estado).length;
   const vigentes = filas.filter((f) => f.estadoRevision !== 'rechazada');
   const conciliadoBanco = vigentes.reduce((s, f) => s + suma(f.bancoIds, mapaBanco), 0);
@@ -92,7 +94,7 @@ function ResultadosConTrabajo({ trabajo, seleccionada, onSeleccionar, onCambio, 
             Rehacer
           </button>
           <button type="button" className="boton boton--secundario" onClick={onIrGrafo}>Ver grafo</button>
-          {apiUrl && <GuardarServidor apiUrl={apiUrl} trabajo={trabajo} filas={filas} avisar={avisar} />}
+          {apiUrl && <GuardarServidor apiUrl={apiUrl} token={token} trabajo={trabajo} filas={filas} avisar={avisar} />}
         </div>
       </div>
 
@@ -101,6 +103,7 @@ function ResultadosConTrabajo({ trabajo, seleccionada, onSeleccionar, onCambio, 
         <Tarjeta titulo="Sugeridas" valor={cuenta('sugerida')} tono="sugerida" detalle="para revisar" />
         <Tarjeta titulo="Confirmadas" valor={cuenta('confirmada')} tono="ok" />
         <Tarjeta titulo="Sin cruzar" valor={sinCruzar.banco.length + sinCruzar.ventas.length} tono="error" detalle={`${sinCruzar.banco.length} banco · ${sinCruzar.ventas.length} ventas`} />
+        {clasificados.length > 0 && <Tarjeta titulo="Clasificados" valor={clasificados.length} detalle="por reglas del perfil" />}
         <Tarjeta titulo="Total banco" valor={formatearCOP(resultado.resumen.totalBancoCentavos)} detalle={`${resultado.resumen.movimientosBanco} abonos`} />
         <Tarjeta titulo="Total ventas" valor={formatearCOP(resultado.resumen.totalVentasCentavos)} detalle={`${resultado.resumen.movimientosVentas} ventas`} />
         <Tarjeta titulo="Conciliado" valor={formatearCOP(conciliadoBanco)} detalle={`diferencia ${formatearCOP(conciliadoBanco - conciliadoVentas)}`} />
@@ -145,7 +148,7 @@ function ResultadosConTrabajo({ trabajo, seleccionada, onSeleccionar, onCambio, 
                           {f.id}
                         </button>
                       </td>
-                      <td>{NOMBRE_TIPO[f.tipo] ?? f.tipo}{f.ventasIds.length > 1 ? ` (${f.ventasIds.length})` : ''}</td>
+                      <td>{NOMBRE_TIPO[f.tipo] ?? f.tipo}{f.bancoIds.length > 1 ? ` (${f.bancoIds.length}:${f.ventasIds.length})` : f.ventasIds.length > 1 ? ` (${f.ventasIds.length})` : ''}</td>
                       <td><Estado estado={f.estadoRevision} /></td>
                       <td className="num">{formatearCOP(suma(f.bancoIds, mapaBanco))}</td>
                       <td className={`num ${f.diferenciaCentavos < 0 ? 'texto-error' : ''}`}>{formatearCOP(f.diferenciaCentavos)}</td>
@@ -163,6 +166,8 @@ function ResultadosConTrabajo({ trabajo, seleccionada, onSeleccionar, onCambio, 
 
       <Emparejar trabajo={trabajo} sinCruzar={sinCruzar} mapaBanco={mapaBanco} mapaVentas={mapaVentas}
         onEmparejado={(c) => { onSeleccionar(c.id); onCambio(); }} avisar={avisar} />
+
+      {clasificados.length > 0 && <Clasificados lista={clasificados} trabajo={trabajo} mapaBanco={mapaBanco} mapaVentas={mapaVentas} />}
 
       <Bitacora eventos={sesion.bitacora()} />
     </section>
@@ -271,7 +276,7 @@ function Emparejar({ trabajo, sinCruzar, mapaBanco, mapaVentas, onEmparejado, av
     }
   };
 
-  const lista = (titulo: string, ids: string[], mapa: Map<string, Movimiento>, elegidos: string[], fijar: (l: string[]) => void) => (
+  const lista = (titulo: string, lado: 'banco' | 'ventas', ids: string[], mapa: Map<string, Movimiento>, elegidos: string[], fijar: (l: string[]) => void) => (
     <fieldset className="sin-cruzar">
       <legend>{titulo} sin cruzar ({ids.length})</legend>
       {ids.length === 0 ? <p className="suave">Todo cruzó.</p> : (
@@ -287,6 +292,7 @@ function Emparejar({ trabajo, sinCruzar, mapaBanco, mapaVentas, onEmparejado, av
                     <span className="suave">{m?.referencia || m?.descripcion || 'sin referencia'}</span>
                   </span>
                 </label>
+                <Motivo texto={trabajo.sesion.motivo(id, lado)} />
               </li>
             );
           })}
@@ -298,10 +304,10 @@ function Emparejar({ trabajo, sinCruzar, mapaBanco, mapaVentas, onEmparejado, av
   return (
     <section className="tarjeta" aria-labelledby="titulo-emparejar">
       <h3 id="titulo-emparejar">Sin cruzar y emparejamiento manual</h3>
-      <p className="suave">Marca uno o más movimientos de cada lado y empareja a mano lo que el motor no pudo resolver.</p>
+      <p className="suave">Cada movimiento dice por qué no cruzó. Marca uno o más de cada lado y empareja a mano lo que el motor no pudo resolver.</p>
       <div className="rejilla-2">
-        {lista('Banco', sinCruzar.banco, mapaBanco, banco, setElegidosBanco)}
-        {lista('Ventas', sinCruzar.ventas, mapaVentas, ventas, setElegidosVentas)}
+        {lista('Banco', 'banco', sinCruzar.banco, mapaBanco, banco, setElegidosBanco)}
+        {lista('Ventas', 'ventas', sinCruzar.ventas, mapaVentas, ventas, setElegidosVentas)}
       </div>
       <div className="barra-accion">
         <p aria-live="polite">
@@ -311,6 +317,55 @@ function Emparejar({ trabajo, sinCruzar, mapaBanco, mapaVentas, onEmparejado, av
         <button type="button" className="boton" disabled={banco.length === 0 || ventas.length === 0} onClick={emparejar}>
           Emparejar seleccionados
         </button>
+      </div>
+    </section>
+  );
+}
+
+// "Por qué no cruzó": lo calcula conciliar (o la sesión, si quedó libre por un rechazo).
+function Motivo({ texto }: { texto: string | null }) {
+  if (!texto) return null;
+  return <p className="motivo"><span className="motivo__etiqueta">Por qué no cruzó:</span> {texto}</p>;
+}
+
+const NOMBRE_CATEGORIA: Record<string, string> = {
+  'gasto:GMF': 'Gasto bancario: GMF (4×1000)',
+  'ingreso:efectivo': 'Ingreso en efectivo',
+  'gasto:comision': 'Gasto: comisión',
+  ignorar: 'Ignorado',
+};
+
+function Clasificados({ lista, trabajo, mapaBanco, mapaVentas }: {
+  lista: Clasificado[]; trabajo: Trabajo; mapaBanco: Map<string, Movimiento>; mapaVentas: Map<string, Movimiento>;
+}) {
+  const nombreRegla = (id: string) => trabajo.perfil.reglas?.find((r) => r.id === id)?.nombre ?? id;
+  return (
+    <section className="tarjeta" aria-labelledby="titulo-clasificados">
+      <h3 id="titulo-clasificados">Clasificados ({lista.length})</h3>
+      <p className="suave">Movimientos que una regla del perfil sacó del cruce: no son pagos de ventas, así que no cuentan como «sin cruzar».</p>
+      <div className="tabla-envoltura">
+        <table className="tabla tabla--compacta">
+          <thead>
+            <tr><th scope="col">Lado</th><th scope="col">Fecha</th><th scope="col">Descripción</th><th scope="col" className="num">Monto</th><th scope="col">Categoría</th></tr>
+          </thead>
+          <tbody>
+            {lista.map((c) => {
+              const m = (c.lado === 'banco' ? mapaBanco : mapaVentas).get(c.id);
+              return (
+                <tr key={`${c.lado}:${c.id}`}>
+                  <td>{c.lado === 'banco' ? 'Banco' : 'Ventas'}</td>
+                  <td>{m?.fecha ?? ''}</td>
+                  <td>{m?.descripcion || m?.referencia || c.id}</td>
+                  <td className="num">{m ? formatearCOP(m.montoCentavos) : ''}</td>
+                  <td>
+                    <span className="insignia insignia--neutra">{NOMBRE_CATEGORIA[c.categoria] ?? c.categoria}</span>
+                    <span className="ayuda bloque">Regla: {nombreRegla(c.reglaId)}</span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
     </section>
   );
@@ -347,12 +402,14 @@ function Bitacora({ eventos }: { eventos: Evento[] }) {
   );
 }
 
-function GuardarServidor({ apiUrl, trabajo, filas, avisar }: { apiUrl: string; trabajo: Trabajo; filas: FilaRevision[]; avisar: Avisar }) {
+function GuardarServidor({ apiUrl, token, trabajo, filas, avisar }: { apiUrl: string; token?: string; trabajo: Trabajo; filas: FilaRevision[]; avisar: Avisar }) {
   const [enviando, setEnviando] = useState(false);
   const base = apiUrl.replace(/\/+$/, '');
   // La API solo conoce las plantillas incluidas; las propias viven en este navegador.
-  const propias = [trabajo.archivos.banco.plantillaId, trabajo.archivos.ventas.plantillaId]
+  // Con sesión iniciada la API también conoce las plantillas de la empresa: ella misma valida.
+  const propias = token ? [] : [trabajo.archivos.banco.plantillaId, trabajo.archivos.ventas.plantillaId]
     .filter((id): id is string => id !== undefined && !IDS_INCLUIDAS.has(id));
+  const autorizacion: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
 
   const enviar = async () => {
     // Es la única acción que saca datos del navegador: se pide confirmación explícita.
@@ -361,7 +418,7 @@ function GuardarServidor({ apiUrl, trabajo, filas, avisar }: { apiUrl: string; t
     try {
       const r = await fetch(`${base}/conciliaciones`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...autorizacion },
         body: JSON.stringify({ banco: trabajo.archivos.banco, ventas: trabajo.archivos.ventas, perfil: trabajo.perfil }),
       });
       if (!r.ok) {
@@ -378,7 +435,7 @@ function GuardarServidor({ apiUrl, trabajo, filas, avisar }: { apiUrl: string; t
         if (f.tipo === 'manual') continue;
         const accion = f.estadoRevision === 'confirmada' ? 'confirmar' : f.estadoRevision === 'rechazada' ? 'rechazar' : null;
         if (!accion) continue;
-        const rr = await fetch(`${base}/conciliaciones/${encodeURIComponent(id)}/coincidencias/${encodeURIComponent(f.id)}/${accion}`, { method: 'POST' });
+        const rr = await fetch(`${base}/conciliaciones/${encodeURIComponent(id)}/coincidencias/${encodeURIComponent(f.id)}/${accion}`, { method: 'POST', headers: autorizacion });
         if (rr.ok) replicadas++;
       }
       const manuales = filas.filter((f) => f.tipo === 'manual').length;
@@ -390,9 +447,11 @@ function GuardarServidor({ apiUrl, trabajo, filas, avisar }: { apiUrl: string; t
     }
   };
 
-  const motivo = propias.length > 0
-    ? `No se puede guardar en el servidor: la plantilla ${propias.map((id) => `«${id}»`).join(' y ')} es propia de este navegador y la API solo conoce las plantillas incluidas.`
-    : undefined;
+  const motivo = trabajo.bloqueoServidor
+    ? `No se puede guardar en el servidor: ${trabajo.bloqueoServidor}`
+    : propias.length > 0
+      ? `No se puede guardar en el servidor: la plantilla ${propias.map((id) => `«${id}»`).join(' y ')} es propia de este navegador y la API solo conoce las plantillas incluidas.`
+      : undefined;
 
   return (
     <>

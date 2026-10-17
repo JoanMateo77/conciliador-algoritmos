@@ -78,16 +78,33 @@ Reglas que garantizan estabilidad y escala:
 | 6. API | Sesiones y confirmación de matches en transacción PostgreSQL | Render + Neon |
 | 7. Cierre | README, documento final, despliegue | Entrega |
 
-### Después de la entrega
+### Después de la entrega: escalado semana a semana
 
-| Fase | Contenido |
-|---|---|
-| 8. Más formatos | Excel (SheetJS), MT940, camt.053, presets por banco con muestras reales |
-| 9. Reglas avanzadas | Reglas ordenadas AND/OR, tarifas por municipio y vigencia, GMF |
-| 10. Multiempresa | Autenticación, plantillas y perfiles por empresa con versiones |
-| 11. Escala | Procesamiento por lotes en workers, colas persistentes, 10⁶ movimientos |
-| 12. Comunidad | npm 0.x, README bilingüe, plantillas aportadas por usuarios |
-| 13. Colombia | Referencia de pago Bre-B, cruce con facturas DIAN (CUFE) |
+Cada fase termina con algo que funciona, con pruebas, y se integra a `main`
+con una rama propia (`fase-08-formatos`, `fase-09-reglas`...) mezclada con
+`--no-ff`, igual que en los retos del curso.
+
+| Semana | Fase | Contenido | Criterio de terminado |
+|---|---|---|---|
+| 1 (19–25 oct) | 8. Validación con usuarios | 5 a 10 entrevistas cortas; conseguir 3 a 5 archivos reales anonimizados (extracto Bancolombia o Davivienda, Asobancaria, Wompi o Mercado Pago); convertirlos en plantillas y vectores de prueba | Cada archivo real se lee sin errores y tiene su prueba |
+| 2 (26 oct–1 nov) | 9. Más formatos | Excel (.xlsx) con SheetJS en el adaptador, sin tocar el núcleo; MT940 y camt.053 como lectores registrados; versión de plantilla en cada movimiento | Mismo cruce con CSV o Excel del mismo extracto |
+| 3 (2–8 nov) | 10. Reglas avanzadas | Reglas ordenadas con condiciones AND/OR (igual, contiene, regex, rango); tarifas de retención con vigencia por fecha, medio de pago y municipio; GMF (4×1000) clasificado como gasto | Un perfil puede expresar las reglas de Xero/Odoo sin código |
+| 4 (9–15 nov) | 11. Cruce N:M y explicabilidad | Clusters N:M en el grafo con asignación óptima (Húngaro) por componente; desempates documentados; reporte "por qué no cruzó" por movimiento | Pruebas de propiedades: nunca empeora frente al greedy |
+| 5 (16–22 nov) | 12. Multiempresa | Autenticación (JWT), empresas, usuarios y roles; plantillas y perfiles por empresa con historial de versiones; auditoría por usuario | Dos empresas con formatos distintos en la misma instancia |
+| 6 (23–29 nov) | 13. Escala y estabilidad | Ingesta por lotes con cola persistente (tabla de trabajos en PostgreSQL), procesamiento en un worker aparte, paginación, índices; pruebas de carga con 10⁶ movimientos; métricas y registros estructurados | 10⁶ movimientos conciliados sin bloquear la API |
+| 7 (30 nov–6 dic) | 14. Librería pública | Compilación a JS + tipos, publicación `0.x` en npm, README bilingüe, documentación de la API, guía para aportar plantillas, versionado semántico y changelog | `npm install` y ejemplo de 10 líneas funcionan en un proyecto limpio |
+| 8 (7–13 dic) | 15. Colombia | Campo de Referencia de Pago de Bre-B (si el BanRep la aprueba); cruce pago ↔ factura con XML de la DIAN (CUFE); exportes para contabilidad | Ciclo pasarela → banco → factura cerrado en la demo |
+
+Principios para escalar sin rehacer:
+
+- El núcleo sigue puro. Lo nuevo (Excel, autenticación, workers) vive en
+  adaptadores, en la API o en el panel.
+- Todo cambio de formato o regla es un dato con versión, nunca un `if` por
+  banco.
+- Cada fase agrega pruebas antes de cambiar código existente; CI en verde
+  para mezclar.
+- Medir antes de optimizar: `scripts/medir.ts` se corre en cada fase de
+  escala y sus números van al documento final.
 
 ## 5. Riesgos
 

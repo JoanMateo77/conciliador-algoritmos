@@ -1,24 +1,23 @@
 // Lector genérico: convierte el texto de un archivo en Movimientos siguiendo una
 // plantilla. Una línea mala va a errores con su número y el resto sigue.
-import { aCentavos, aFechaISO, normalizarReferencia, ErrorDeDato } from '../modelo.ts';
-import type { Movimiento, Desglose } from '../modelo.ts';
+// 'delimitado' y 'anchoFijo' se leen aquí; los demás tipos van al lector registrado.
 import { detectarSeparador, normalizarEncabezado, parsearCSV, quitarBOM } from './csv.ts';
-import type { CampoDestino, ErrorDeLinea, Mapeo, MapeoDetallado, Plantilla, ResultadoLectura } from './tipos.ts';
-
-const CAMPOS_MONTO: Partial<Record<CampoDestino, keyof Desglose>> = {
-  bruto: 'brutoCentavos',
-  comision: 'comisionCentavos',
-  ivaComision: 'ivaComisionCentavos',
-  retenciones: 'retencionesCentavos',
-};
-
-// Cómo obtener el texto de una columna en la fila actual (delimitado) o de una posición (ancho fijo).
-type Extractor = (mapeo: MapeoDetallado) => string;
-
-const comoObjeto = (m: Mapeo): MapeoDetallado => (typeof m === 'string' ? { de: m } : m);
+import { obtenerLector } from './lectores.ts';
+import { aplicarRegex, comoObjeto, crearLector } from './procesar.ts';
+import type { Extractor } from './procesar.ts';
+import type { CampoDestino, Mapeo, Plantilla, ResultadoLectura } from './tipos.ts';
 
 export function leerArchivo(texto: string, plantilla: Plantilla): ResultadoLectura {
-  return plantilla.tipo === 'anchoFijo' ? leerAnchoFijo(texto, plantilla) : leerDelimitado(texto, plantilla);
+  if (plantilla.tipo === 'anchoFijo') return leerAnchoFijo(texto, plantilla);
+  if (plantilla.tipo === 'delimitado') return leerDelimitado(texto, plantilla);
+  const lector = obtenerLector(plantilla.tipo);
+  if (!lector) {
+    return { movimientos: [], errores: [{ linea: 0, mensaje: `no hay un lector registrado para el tipo "${plantilla.tipo}"` }] };
+  }
+  const r = lector.leer(texto, plantilla);
+  // Un lector de terceros podría olvidarlo: la versión se fija aquí para todos.
+  for (const m of r.movimientos) m.plantillaVersion = plantilla.version;
+  return r;
 }
 
 function leerDelimitado(texto: string, plantilla: Plantilla): ResultadoLectura {
@@ -51,7 +50,8 @@ function leerDelimitado(texto: string, plantilla: Plantilla): ResultadoLectura {
   if (filasEncabezado > 0) {
     for (const [campo, m] of Object.entries(plantilla.columnas) as [CampoDestino, Mapeo][]) {
       const o = comoObjeto(m);
-      if (o.fijo !== undefined) continue;
+      // Una columna opcional (p. ej. REFERENCIA PAGO de Bre-B) puede no venir en archivos antiguos.
+      if (o.fijo !== undefined || o.opcional) continue;
       if (o.de !== undefined) revisar(`columnas.${campo}`, o.de);
       for (const u of o.unir ?? []) revisar(`columnas.${campo}`, u);
     }
@@ -104,99 +104,4 @@ function leerAnchoFijo(texto: string, plantilla: Plantilla): ResultadoLectura {
     lector.procesar(i + 1, extraer, valorOmitir);
   });
   return { movimientos: lector.movimientos, errores: lector.errores };
-}
-
-function aplicarRegex(valor: string, m: MapeoDetallado, regex: (fuente: string) => RegExp): string {
-  if (m.regex === undefined) return valor;
-  const r = regex(m.regex).exec(valor);
-  if (!r) return '';
-  return (r[1] ?? r[0]).trim();
-}
-
-// Lógica común a los dos tipos: mapeos, conversión, omitirSi, soloEntradas, ids.
-function crearLector(plantilla: Plantilla) {
-  const movimientos: Movimiento[] = [];
-  const errores: ErrorDeLinea[] = [];
-  const ids = new Set<string>();
-  const separadorDecimal = plantilla.separadorDecimal ?? ',';
-
-  // Las regex se compilan una vez por archivo, no una por fila.
-  const cache = new Map<string, RegExp>();
-  const regex = (fuente: string): RegExp => {
-    let r = cache.get(fuente);
-    if (!r) { r = new RegExp(fuente); cache.set(fuente, r); }
-    return r;
-  };
-  const omitir = (plantilla.omitirSi ?? []).map((o) => ({ campo: o.campo, regex: regex(o.regex) }));
-  const columnas = Object.entries(plantilla.columnas) as [CampoDestino, Mapeo][];
-
-  function procesar(linea: number, extraer: Extractor, valorOmitir: (campo: string) => string): void {
-    try {
-      for (const o of omitir) if (o.regex.test(valorOmitir(o.campo))) return;
-
-      const textos: Partial<Record<CampoDestino, string>> = {};
-      const montos: Partial<Record<CampoDestino, number>> = {};
-      for (const [campo, mapeo] of columnas) {
-        const m = comoObjeto(mapeo);
-        const valor = aplicarRegex(extraer(m), m, regex);
-        if (campo === 'monto' || campo in CAMPOS_MONTO) {
-          if (valor === '') {
-            if (campo === 'monto') throw new ErrorDeDato('monto: vacío');
-            continue; // un desglose vacío simplemente no viene
-          }
-          let centavos = conCampo(campo, () => aCentavos(valor, separadorDecimal, m.decimalesImplicitos));
-          if (m.signo === 'abs') centavos = Math.abs(centavos);
-          else if (m.signo === 'negar') centavos = -centavos;
-          montos[campo] = centavos + 0; // + 0 evita -0
-        } else {
-          textos[campo] = valor;
-        }
-      }
-
-      const montoCentavos = montos.monto!;
-      if (plantilla.soloEntradas && montoCentavos <= 0) return;
-
-      const textoFecha = textos.fecha ?? '';
-      if (textoFecha === '') throw new ErrorDeDato('fecha: vacía');
-      const fecha = conCampo('fecha', () => aFechaISO(textoFecha, plantilla.formatoFecha));
-
-      const id = textos.id || `${plantilla.id}:${linea}`;
-      if (ids.has(id)) throw new ErrorDeDato(`id: "${id}" está repetido en el archivo`);
-
-      const movimiento: Movimiento = {
-        id,
-        lado: plantilla.lado,
-        fecha,
-        montoCentavos,
-        referencia: normalizarReferencia(textos.referencia ?? ''),
-        descripcion: textos.descripcion ?? '',
-        plantilla: plantilla.id,
-        linea,
-      };
-      if (textos.referenciaPago) movimiento.referenciaPago = textos.referenciaPago;
-      const desglose: Desglose = {};
-      for (const [campo, clave] of Object.entries(CAMPOS_MONTO) as [CampoDestino, keyof Desglose][]) {
-        if (montos[campo] !== undefined) desglose[clave] = montos[campo];
-      }
-      if (Object.keys(desglose).length > 0) movimiento.desglose = desglose;
-
-      ids.add(id);
-      movimientos.push(movimiento);
-    } catch (e) {
-      if (!(e instanceof ErrorDeDato)) throw e; // un error de programación no se disfraza de dato malo
-      errores.push({ linea, mensaje: e.message });
-    }
-  }
-
-  return { movimientos, errores, procesar, regex };
-}
-
-// Antepone el campo al mensaje para que el usuario sepa qué columna revisar.
-function conCampo<T>(campo: string, f: () => T): T {
-  try {
-    return f();
-  } catch (e) {
-    if (e instanceof ErrorDeDato) throw new ErrorDeDato(`${campo}: ${e.message}`);
-    throw e;
-  }
 }

@@ -1,8 +1,47 @@
 {
   "name": "@conciliador/plantillas",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Plantillas JSON de formatos bancarios y de pasarelas, con archivos de muestra sintéticos.",
+  "keywords": [
+    "conciliacion",
+    "colombia",
+    "pagos",
+    "asobancaria",
+    "wompi",
+    "bre-b",
+    "dian",
+    "plantillas",
+    "mt940",
+    "camt053",
+    "mercado-pago"
+  ],
+  "license": "MIT",
+  "author": "Joan Mateo Cardona Lorza",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/POR-COMPLETAR/conciliador.git",
+    "directory": "packages/plantillas"
+  },
   "type": "module",
-  "exports": { ".": "./index.ts" },
-  "license": "MIT"
+  "exports": {
+    ".": {
+      "conciliador-src": "./index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@conciliador/core": "^0.2.0"
+  }
 }

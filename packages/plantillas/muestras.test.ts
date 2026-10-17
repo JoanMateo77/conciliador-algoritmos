@@ -16,7 +16,7 @@ test('MUESTRAS es idéntico a los archivos de muestras/', () => {
 });
 
 test('cada archivo de muestras/ está en MUESTRAS', () => {
-  const archivos = readdirSync(carpeta).filter((f) => /\.(csv|txt)$/.test(f)).sort();
+  const archivos = readdirSync(carpeta).filter((f) => /\.(csv|txt|xml)$/.test(f)).sort();
   assert.deepEqual(MUESTRAS.map((m) => m.archivo).sort(), archivos);
 });
 
@@ -35,7 +35,8 @@ test('las plantillas cumplen lo básico del contrato', () => {
   assert.equal(new Set(PLANTILLAS.map((p) => p.id)).size, PLANTILLAS.length);
   for (const p of PLANTILLAS) {
     assert.ok(formatos.includes(`${p.id}.json`), `el archivo debe llamarse ${p.id}.json`);
-    assert.equal(p.version, 1);
+    // Versiones fijadas: un cambio de mapeo sube 'version' (banco-csv-generico: REFERENCIA PAGO).
+    assert.equal(p.version, p.id === 'banco-csv-generico' ? 2 : 1, p.id);
     assert.ok(p.nombre && p.descripcion && p.fuente, `${p.id}: falta nombre, descripcion o fuente`);
     assert.ok(p.columnas.fecha && p.columnas.monto, `${p.id}: fecha y monto son obligatorios`);
     for (const o of p.omitirSi ?? []) new RegExp(o.regex); // lanza si la regex es inválida
@@ -48,10 +49,12 @@ test('los encabezados de cada CSV son los que la plantilla detecta y mapea', () 
     const p = plantilla(m.plantillaId)!;
     if (p.tipo !== 'delimitado') continue;
     const encabezados = m.texto.split('\n')[0].split(p.separador!);
-    assert.deepEqual(encabezados, p.detectar!.encabezados, m.id);
-    // Toda columna mencionada en la plantilla debe existir en el archivo.
+    // Las columnas opcionales (p. ej. REFERENCIA PAGO de Bre-B) pueden venir de más.
+    const opcionales = Object.values(p.columnas).flatMap((x) => (typeof x === 'object' && x.opcional && x.de ? [x.de] : []));
+    assert.deepEqual(encabezados.filter((e) => !opcionales.includes(e)), p.detectar!.encabezados, m.id);
+    // Toda columna mencionada en la plantilla (salvo las opcionales) debe existir en el archivo.
     const usadas = [...Object.values(p.columnas), ...(p.omitirSi ?? []).map((o) => o.campo)].flatMap((x) =>
-      typeof x === 'string' ? [x] : [...(x.de ? [x.de] : []), ...(x.unir ?? [])]);
+      typeof x === 'string' ? [x] : x.opcional ? [] : [...(x.de ? [x.de] : []), ...(x.unir ?? [])]);
     for (const c of usadas) assert.ok(encabezados.includes(c), `${m.id}: falta la columna ${c}`);
   }
 });

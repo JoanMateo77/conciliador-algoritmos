@@ -10,6 +10,11 @@ export const CAMPOS_DESTINO = [
 
 export type CampoDestino = typeof CAMPOS_DESTINO[number];
 
+// Tipos con lector incluido. 'delimitado' y 'anchoFijo' son declarativos; el resto usa
+// un LectorFormato registrado (ver lectores.ts).
+export const TIPOS_PLANTILLA = ['delimitado', 'anchoFijo', 'mt940', 'camt053'] as const;
+export type TipoPlantilla = typeof TIPOS_PLANTILLA[number];
+
 export interface MapeoDetallado {
   de?: string;                  // columna origen (delimitado), nombre o "#n" (1 = primera)
   inicio?: number;              // ancho fijo: posición 1-based
@@ -19,6 +24,7 @@ export interface MapeoDetallado {
   decimalesImplicitos?: number; // montos sin separador (Asobancaria)
   signo?: 'negar' | 'abs';
   fijo?: string;                // valor constante
+  opcional?: boolean;           // delimitado: si la columna no está en el archivo, el campo queda vacío
 }
 
 // delimitado: nombre de columna (o índice "#3"); ancho fijo: solo la forma detallada
@@ -31,7 +37,8 @@ export interface Plantilla {
   lado: 'banco' | 'ventas';
   descripcion?: string;
   fuente?: string;                // de dónde sale el formato (documentación pública)
-  tipo: 'delimitado' | 'anchoFijo';
+  tipo: TipoPlantilla;
+  hoja?: string;                  // Excel: hoja a leer (la usa @conciliador/excel; el núcleo la ignora)
   codificacion?: 'utf-8' | 'latin1'; // la decodifica quien lee el archivo (panel/API)
   separador?: string;             // delimitado; si falta se detecta entre , ; \t |
   separadorDecimal?: ',' | '.';   // por defecto ','
@@ -57,3 +64,17 @@ export interface ResultadoLectura {
 export type ResultadoValidacion =
   | { ok: true; plantilla: Plantilla }
   | { ok: false; errores: string[] };
+
+// Un registro ya separado en campos con nombre. Los lectores propios (MT940, camt.053)
+// producen registros y reutilizan el mapeo de columnas, omitirSi y soloEntradas.
+export interface RegistroLeido {
+  linea: number;
+  campos: Record<string, string>;
+}
+
+// Punto de extensión: un formato que no cabe en una plantilla declarativa.
+export interface LectorFormato {
+  tipo: string;                                         // 'mt940', 'camt053', ...
+  leer(texto: string, plantilla: Plantilla): ResultadoLectura;
+  detectar?(texto: string): number;                     // 0..1
+}

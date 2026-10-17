@@ -1,0 +1,48 @@
+# Integración continua: pruebas del núcleo, plantillas y API (con PostgreSQL real)
+# y compilación del panel. Debe quedar en verde antes de mezclar una rama a main.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      # Base desechable para las pruebas de la API (transacciones, bitácora, rechazos).
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: conciliador_prueba
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL_PRUEBA: postgres://postgres:postgres@localhost:5432/conciliador_prueba
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      # npm ci instala exactamente lo que fija package-lock.json.
+      - run: npm ci
+
+      - name: Pruebas (núcleo, plantillas y API con PostgreSQL)
+        run: npm test
+
+      - name: Compilar el panel
+        run: npm run build:web

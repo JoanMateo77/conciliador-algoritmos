@@ -1,0 +1,10 @@
+{
+  "//": "Compila los paquetes publicables a dist/ (JS + .d.ts). Úselo con npm run build:lib.",
+  "files": [],
+  "references": [
+    { "path": "packages/core/tsconfig.build.json" },
+    { "path": "packages/plantillas/tsconfig.build.json" },
+    { "path": "packages/excel/tsconfig.build.json" },
+    { "path": "packages/dian/tsconfig.build.json" }
+  ]
+}

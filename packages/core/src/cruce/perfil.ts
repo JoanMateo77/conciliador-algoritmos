@@ -1,5 +1,9 @@
 // Perfil: todas las reglas de cruce que cambian de una empresa a otra.
 // Es dato puro (JSON), así cada empresa ajusta el cruce sin tocar código.
+import type { Regla } from './reglas.ts';
+import type { Tarifa } from './tarifas.ts';
+import { validarReglas } from './reglas.ts';
+import { validarTarifas } from './tarifas.ts';
 
 export interface Perfil {
   id: string;
@@ -9,10 +13,15 @@ export interface Perfil {
   toleranciaSobranteCentavos: number;   // sobrepagos: normalmente 0
   ventanaDias: number;                  // la venta puede ser hasta N días antes del abono
   diasDespues: number;                  // o hasta N días después (normalmente 0 o 1)
-  maxGrupo: number;                     // máximo de ventas en un abono agrupado
+  maxGrupo: number;                     // máximo de ventas por grupo (N:1 y N:M); 0 o 1 = no agrupar
   umbralAutomatico: number;             // 0..1
   umbralSugerencia: number;             // 0..1
   retenciones: { nombre: string; tasa: number }[]; // explican faltantes, ej. ReteFuente 0.015
+  // Fases 10 y 11, todos opcionales: un perfil del MVP sigue funcionando igual.
+  reglas?: Regla[];          // clasificar, exigir referencia o cambiar la tolerancia de ciertos movimientos
+  tarifas?: Tarifa[];        // con vigencia: explican faltantes a la fecha del abono
+  municipio?: string;        // para tarifas municipales (ReteICA)
+  cruceOptimo?: boolean;     // por defecto true: Húngaro por componente y clusters N:M
 }
 
 // Pensado para pasarelas colombianas: comisión + IVA + ReteFuente rondan el 4,65 %,
@@ -83,6 +92,13 @@ export function validarPerfil(p: unknown): { ok: true; perfil: Perfil } | { ok: 
     if (o.retenciones.length > 10) errores.push('retenciones: máximo 10');
   }
 
+  if (o.reglas !== undefined) errores.push(...validarReglas(o.reglas));
+  if (o.tarifas !== undefined) errores.push(...validarTarifas(o.tarifas));
+  if (o.municipio !== undefined && (typeof o.municipio !== 'string' || o.municipio.trim() === '')) {
+    errores.push('municipio: debe ser un texto no vacío');
+  }
+  if (o.cruceOptimo !== undefined && typeof o.cruceOptimo !== 'boolean') errores.push('cruceOptimo: debe ser true o false');
+
   if (errores.length > 0) return { ok: false, errores };
   // Copia: el cruce no debe verse afectado si quien llamó cambia su objeto después.
   const perfil: Perfil = {
@@ -98,5 +114,10 @@ export function validarPerfil(p: unknown): { ok: true; perfil: Perfil } | { ok: 
     umbralSugerencia: o.umbralSugerencia as number,
     retenciones: (o.retenciones as { nombre: string; tasa: number }[]).map((r) => ({ nombre: r.nombre, tasa: r.tasa })),
   };
+  // Los opcionales solo se copian si vienen: un perfil del MVP queda idéntico a su copia.
+  if (o.reglas !== undefined) perfil.reglas = structuredClone(o.reglas as Regla[]);
+  if (o.tarifas !== undefined) perfil.tarifas = structuredClone(o.tarifas as Tarifa[]);
+  if (o.municipio !== undefined) perfil.municipio = o.municipio as string;
+  if (o.cruceOptimo !== undefined) perfil.cruceOptimo = o.cruceOptimo as boolean;
   return { ok: true, perfil };
 }

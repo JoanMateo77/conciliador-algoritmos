@@ -1,0 +1,417 @@
+{
+ "par1": {
+  "coincidencias": [
+   {
+    "id": "c1",
+    "tipo": "exacta",
+    "bancoIds": [
+     "banco-csv-generico:3"
+    ],
+    "ventasIds": [
+     "99999-1790846062-10000"
+    ],
+    "puntaje": 1,
+    "diferenciaCentavos": 0,
+    "explicacion": "Mismo monto ($89.500) y misma referencia PED2026104823.",
+    "estado": "automatica"
+   },
+   {
+    "id": "c2",
+    "tipo": "exacta",
+    "bancoIds": [
+     "banco-csv-generico:5"
+    ],
+    "ventasIds": [
+     "99999-1790956359-10185"
+    ],
+    "puntaje": 1,
+    "diferenciaCentavos": 0,
+    "explicacion": "Mismo monto ($245.000) y misma referencia PED2026117350.",
+    "estado": "automatica"
+   },
+   {
+    "id": "c3",
+    "tipo": "exacta",
+    "bancoIds": [
+     "banco-csv-generico:6"
+    ],
+    "ventasIds": [
+     "99999-1791206896-10296"
+    ],
+    "puntaje": 1,
+    "diferenciaCentavos": 0,
+    "explicacion": "Mismo monto ($62.300) y misma referencia PED2026121904.",
+    "estado": "automatica"
+   },
+   {
+    "id": "c4",
+    "tipo": "exacta",
+    "bancoIds": [
+     "banco-csv-generico:14"
+    ],
+    "ventasIds": [
+     "99999-1791537262-10555"
+    ],
+    "puntaje": 1,
+    "diferenciaCentavos": 0,
+    "explicacion": "Mismo monto ($410.000) y misma referencia PED2026133018.",
+    "estado": "automatica"
+   },
+   {
+    "id": "c5",
+    "tipo": "tolerancia",
+    "bancoIds": [
+     "banco-csv-generico:7"
+    ],
+    "ventasIds": [
+     "99999-1791018862-10222"
+    ],
+    "puntaje": 0.8023,
+    "diferenciaCentavos": -532626,
+    "explicacion": "Faltan $5.326,26 (3,15 % de $168.900) ≈ comisión 3,15 %. Misma referencia; venta 2 días antes del abono.",
+    "estado": "sugerida"
+   },
+   {
+    "id": "c6",
+    "tipo": "tolerancia",
+    "bancoIds": [
+     "banco-csv-generico:8"
+    ],
+    "ventasIds": [
+     "99999-1791196865-10259"
+    ],
+    "puntaje": 0.7473,
+    "diferenciaCentavos": -2419820,
+    "explicacion": "Faltan $24.198,20 (4,65 % de $520.000) ≈ comisión 3,15 % + ReteFuente 1,5 % ($7.800). Misma referencia; venta 1 día antes del abono.",
+    "estado": "sugerida"
+   },
+   {
+    "id": "c7",
+    "tipo": "tolerancia",
+    "bancoIds": [
+     "banco-csv-generico:9"
+    ],
+    "ventasIds": [
+     "99999-1791284627-10370"
+    ],
+    "puntaje": 0.8223,
+    "diferenciaCentavos": -231625,
+    "explicacion": "Faltan $2.316,25 (3,15 % de $73.450) ≈ comisión 3,15 %. Misma referencia; venta 1 día antes del abono.",
+    "estado": "sugerida"
+   },
+   {
+    "id": "c8",
+    "tipo": "tolerancia",
+    "bancoIds": [
+     "banco-csv-generico:12"
+    ],
+    "ventasIds": [
+     "99999-1791457427-10518"
+    ],
+    "puntaje": 0.7473,
+    "diferenciaCentavos": -930235,
+    "explicacion": "Faltan $9.302,35 (4,65 % de $199.900) ≈ comisión 3,15 % + ReteFuente 1,5 % ($2.998,50). Misma referencia; venta 1 día antes del abono.",
+    "estado": "sugerida"
+   },
+   {
+    "id": "c9",
+    "tipo": "tolerancia",
+    "bancoIds": [
+     "banco-csv-generico:15"
+    ],
+    "ventasIds": [
+     "99999-1791630227-10629"
+    ],
+    "puntaje": 0.7823,
+    "diferenciaCentavos": -983892,
+    "explicacion": "Faltan $9.838,92 (3,15 % de $312.000) ≈ comisión 3,15 %. Misma referencia; venta 3 días antes del abono.",
+    "estado": "sugerida"
+   },
+   {
+    "id": "c10",
+    "tipo": "tolerancia",
+    "bancoIds": [
+     "banco-csv-generico:16"
+    ],
+    "ventasIds": [
+     "99999-1791889427-10740"
+    ],
+    "puntaje": 0.95,
+    "diferenciaCentavos": 0,
+    "explicacion": "Monto exacto ($135.700). Referencia PED2026109 coincide por prefijo con PED2026109377; venta 1 día antes del abono.",
+    "estado": "automatica"
+   },
+   {
+    "id": "c11",
+    "tipo": "agrupada",
+    "bancoIds": [
+     "banco-csv-generico:4"
+    ],
+    "ventasIds": [
+     "99999-1790852627-10037",
+     "99999-1790869959-10074"
+    ],
+    "puntaje": 0.6937,
+    "diferenciaCentavos": -292329,
+    "explicacion": "Abono que agrupa 2 ventas por $92.700. Faltan $2.923,29 (3,15 % de $92.700) ≈ comisión 3,15 %. Ventas 1 día antes del abono.",
+    "estado": "sugerida"
+   },
+   {
+    "id": "c12",
+    "tipo": "agrupada",
+    "bancoIds": [
+     "banco-csv-generico:10"
+    ],
+    "ventasIds": [
+     "99999-1791371027-10407",
+     "99999-1791388359-10444",
+     "99999-1791394511-10481"
+    ],
+    "puntaje": 0.6937,
+    "diferenciaCentavos": -491789,
+    "explicacion": "Abono que agrupa 3 ventas por $155.950. Faltan $4.917,89 (3,15 % de $155.950) ≈ comisión 3,15 %. Ventas 1 día antes del abono.",
+    "estado": "sugerida"
+   },
+   {
+    "id": "c13",
+    "tipo": "agrupada",
+    "bancoIds": [
+     "banco-csv-generico:17"
+    ],
+    "ventasIds": [
+     "99999-1791796462-10666",
+     "99999-1791803027-10703",
+     "99999-1791906759-10777",
+     "99999-1791912911-10814"
+    ],
+    "puntaje": 0.6757,
+    "diferenciaCentavos": -694401,
+    "explicacion": "Abono que agrupa 4 ventas por $220.200. Faltan $6.944,01 (3,15 % de $220.200) ≈ comisión 3,15 %. Ventas de 1 a 2 días antes del abono.",
+    "estado": "sugerida"
+   }
+  ],
+  "sinCruzarBanco": [
+   "banco-csv-generico:13"
+  ],
+  "sinCruzarVentas": [
+   "99999-1790932462-10111",
+   "99999-1792055662-10888"
+  ],
+  "resumen": {
+   "movimientosBanco": 14,
+   "movimientosVentas": 21,
+   "automaticas": 5,
+   "sugeridas": 8,
+   "sinCruzarBanco": 1,
+   "sinCruzarVentas": 2,
+   "totalBancoCentavos": 296983283,
+   "totalVentasCentavos": 336360000,
+   "totalConciliadoCentavos": 261983283
+  },
+  "grafo": {
+   "nodos": [
+    {
+     "id": "banco-csv-generico:7",
+     "lado": "banco"
+    },
+    {
+     "id": "99999-1791018862-10222",
+     "lado": "ventas"
+    },
+    {
+     "id": "banco-csv-generico:8",
+     "lado": "banco"
+    },
+    {
+     "id": "99999-1791196865-10259",
+     "lado": "ventas"
+    },
+    {
+     "id": "banco-csv-generico:9",
+     "lado": "banco"
+    },
+    {
+     "id": "99999-1791284627-10370",
+     "lado": "ventas"
+    },
+    {
+     "id": "banco-csv-generico:12",
+     "lado": "banco"
+    },
+    {
+     "id": "99999-1791457427-10518",
+     "lado": "ventas"
+    },
+    {
+     "id": "banco-csv-generico:15",
+     "lado": "banco"
+    },
+    {
+     "id": "99999-1791630227-10629",
+     "lado": "ventas"
+    },
+    {
+     "id": "banco-csv-generico:16",
+     "lado": "banco"
+    },
+    {
+     "id": "99999-1791889427-10740",
+     "lado": "ventas"
+    }
+   ],
+   "aristas": [
+    {
+     "banco": "banco-csv-generico:7",
+     "venta": "99999-1791018862-10222",
+     "peso": 0.8023
+    },
+    {
+     "banco": "banco-csv-generico:8",
+     "venta": "99999-1791196865-10259",
+     "peso": 0.7473
+    },
+    {
+     "banco": "banco-csv-generico:9",
+     "venta": "99999-1791284627-10370",
+     "peso": 0.8223
+    },
+    {
+     "banco": "banco-csv-generico:12",
+     "venta": "99999-1791457427-10518",
+     "peso": 0.7473
+    },
+    {
+     "banco": "banco-csv-generico:15",
+     "venta": "99999-1791630227-10629",
+     "peso": 0.7823
+    },
+    {
+     "banco": "banco-csv-generico:16",
+     "venta": "99999-1791889427-10740",
+     "peso": 0.95
+    }
+   ]
+  },
+  "pases": [
+   {
+    "nombre": "exacta",
+    "coincidencias": 4
+   },
+   {
+    "nombre": "tolerancia",
+    "coincidencias": 6
+   },
+   {
+    "nombre": "agrupada",
+    "coincidencias": 3
+   }
+  ]
+ },
+ "par2": {
+  "coincidencias": [
+   {
+    "id": "c1",
+    "tipo": "exacta",
+    "bancoIds": [
+     "asobancaria-2001:3"
+    ],
+    "ventasIds": [
+     "V-2101"
+    ],
+    "puntaje": 1,
+    "diferenciaCentavos": 0,
+    "explicacion": "Mismo monto ($125.000) y misma referencia 100245.",
+    "estado": "automatica"
+   },
+   {
+    "id": "c2",
+    "tipo": "exacta",
+    "bancoIds": [
+     "asobancaria-2001:4"
+    ],
+    "ventasIds": [
+     "V-2102"
+    ],
+    "puntaje": 1,
+    "diferenciaCentavos": 0,
+    "explicacion": "Mismo monto ($87.350) y misma referencia 100251.",
+    "estado": "automatica"
+   },
+   {
+    "id": "c3",
+    "tipo": "exacta",
+    "bancoIds": [
+     "asobancaria-2001:5"
+    ],
+    "ventasIds": [
+     "V-2103"
+    ],
+    "puntaje": 1,
+    "diferenciaCentavos": 0,
+    "explicacion": "Mismo monto ($342.900) y misma referencia 100263.",
+    "estado": "automatica"
+   },
+   {
+    "id": "c4",
+    "tipo": "exacta",
+    "bancoIds": [
+     "asobancaria-2001:6"
+    ],
+    "ventasIds": [
+     "V-2104"
+    ],
+    "puntaje": 1,
+    "diferenciaCentavos": 0,
+    "explicacion": "Mismo monto ($56.000) y misma referencia 100270.",
+    "estado": "automatica"
+   },
+   {
+    "id": "c5",
+    "tipo": "exacta",
+    "bancoIds": [
+     "asobancaria-2001:7"
+    ],
+    "ventasIds": [
+     "V-2105"
+    ],
+    "puntaje": 1,
+    "diferenciaCentavos": 0,
+    "explicacion": "Mismo monto ($210.450) y misma referencia 100288.",
+    "estado": "automatica"
+   }
+  ],
+  "sinCruzarBanco": [],
+  "sinCruzarVentas": [
+   "V-2106"
+  ],
+  "resumen": {
+   "movimientosBanco": 5,
+   "movimientosVentas": 6,
+   "automaticas": 5,
+   "sugeridas": 0,
+   "sinCruzarBanco": 0,
+   "sinCruzarVentas": 1,
+   "totalBancoCentavos": 82170000,
+   "totalVentasCentavos": 92150000,
+   "totalConciliadoCentavos": 82170000
+  },
+  "grafo": {
+   "nodos": [],
+   "aristas": []
+  },
+  "pases": [
+   {
+    "nombre": "exacta",
+    "coincidencias": 5
+   },
+   {
+    "nombre": "tolerancia",
+    "coincidencias": 0
+   },
+   {
+    "nombre": "agrupada",
+    "coincidencias": 0
+   }
+  ]
+ }
+}

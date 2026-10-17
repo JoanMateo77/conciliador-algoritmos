@@ -1,0 +1,27 @@
+{
+  "id": "banco-csv-generico",
+  "nombre": "Extracto bancario CSV (genérico Colombia)",
+  "version": 1,
+  "lado": "banco",
+  "descripcion": "Extracto descargado del portal de un banco colombiano: separador ';', fechas dd/MM/yyyy y montos con miles '.' y decimales ','. Se descartan las filas de saldo y totales y los débitos (solo interesan los abonos).",
+  "fuente": "Estructura común de los extractos CSV que ofrecen los portales bancarios colombianos (columnas fecha, descripción, referencia, valor y saldo). No corresponde a un banco en particular.",
+  "tipo": "delimitado",
+  "codificacion": "utf-8",
+  "separador": ";",
+  "separadorDecimal": ",",
+  "formatoFecha": "dd/MM/yyyy",
+  "filasEncabezado": 1,
+  "omitirSi": [
+    { "campo": "DESCRIPCION", "regex": "^\\s*(SALDO|TOTAL)" }
+  ],
+  "soloEntradas": true,
+  "detectar": {
+    "encabezados": ["FECHA", "DESCRIPCION", "REFERENCIA", "VALOR", "SALDO"]
+  },
+  "columnas": {
+    "fecha": "FECHA",
+    "descripcion": "DESCRIPCION",
+    "referencia": "REFERENCIA",
+    "monto": "VALOR"
+  }
+}

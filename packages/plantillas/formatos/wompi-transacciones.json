@@ -1,0 +1,28 @@
+{
+  "id": "wompi-transacciones",
+  "nombre": "Wompi: transacciones aprobadas",
+  "version": 1,
+  "lado": "ventas",
+  "descripcion": "Exportación CSV de transacciones de Wompi. Solo cuentan las aprobadas (status APPROVED): las rechazadas, anuladas o con error se omiten. El monto viene en centavos (amount_in_cents) y la fecha se toma de created_at (ISO 8601, en UTC).",
+  "fuente": "Campos inspirados en el objeto Transaction de la API pública de Wompi (docs.wompi.co): id, created_at, reference, amount_in_cents, currency, status, payment_method_type, customer_email. El CSV es una exportación construida con esos campos, no un archivo oficial.",
+  "tipo": "delimitado",
+  "codificacion": "utf-8",
+  "separador": ",",
+  "separadorDecimal": ".",
+  "formatoFecha": "yyyy-MM-dd",
+  "filasEncabezado": 1,
+  "omitirSi": [
+    { "campo": "status", "regex": "^(?!APPROVED$)" }
+  ],
+  "soloEntradas": true,
+  "detectar": {
+    "encabezados": ["id", "created_at", "reference", "amount_in_cents", "currency", "status", "payment_method_type", "customer_email"]
+  },
+  "columnas": {
+    "id": "id",
+    "fecha": { "de": "created_at", "regex": "^(\\d{4}-\\d{2}-\\d{2})" },
+    "referencia": "reference",
+    "monto": { "de": "amount_in_cents", "decimalesImplicitos": 2 },
+    "descripcion": { "unir": ["payment_method_type", "customer_email"] }
+  }
+}

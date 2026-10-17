@@ -1,7 +1,8 @@
 // Acceso a PostgreSQL: pool, esquema y transacciones.
-import { readFile } from 'node:fs/promises';
 import pg from 'pg';
 import type { Pool, PoolClient } from 'pg';
+import { aplicarMigraciones } from './migraciones.ts';
+import { registrar } from './registros.ts';
 
 // Sin DATABASE_URL la API sigue viva en modo memoria: devuelve null.
 export function crearPool(url: string | undefined = process.env.DATABASE_URL): Pool | null {
@@ -14,7 +15,7 @@ export function crearPool(url: string | undefined = process.env.DATABASE_URL): P
     connectionTimeoutMillis: 5_000,
   });
   // Un cliente inactivo que se cae (p. ej. Neon suspende la base) no debe tumbar el proceso.
-  pool.on('error', (error: Error) => console.error('Error en conexión inactiva del pool:', error.message));
+  pool.on('error', (error: Error) => registrar('error', 'pool_conexion_inactiva', { mensaje: error.message }));
   return pool;
 }
 
@@ -24,13 +25,9 @@ export function opcionesSsl(url: string): boolean | undefined {
   return process.env.NODE_ENV === 'production' ? true : undefined;
 }
 
-// Aplica esquema.sql. El candado evita que dos instancias que arrancan a la vez choquen.
+// Lleva la base a la última versión (src/migraciones/*.sql). Se conserva el nombre del MVP.
 export async function aplicarEsquema(pool: Pool): Promise<void> {
-  const sql = await readFile(new URL('./esquema.sql', import.meta.url), 'utf8');
-  await enTransaccion(pool, async (cliente) => {
-    await cliente.query('SELECT pg_advisory_xact_lock(4815162342)');
-    await cliente.query(sql);
-  });
+  await aplicarMigraciones(pool);
 }
 
 // BEGIN/COMMIT con el mismo cliente; ante cualquier error, ROLLBACK y se relanza.

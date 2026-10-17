@@ -1,5 +1,5 @@
--- Esquema de la API. Se aplica al arrancar y es idempotente (IF NOT EXISTS),
--- así que correrlo dos veces no cambia nada.
+-- 001: esquema del MVP (antes esquema.sql). Idempotente (IF NOT EXISTS): sobre una
+-- base creada por el MVP no cambia nada y la deja registrada en la tabla migraciones.
 
 CREATE TABLE IF NOT EXISTS conciliaciones (
   id               uuid PRIMARY KEY,

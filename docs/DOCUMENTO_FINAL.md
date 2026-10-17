@@ -40,7 +40,7 @@ usuarios y autenticación, y facturación electrónica DIAN.
 | **React 18 + Vite** | El panel procesa los archivos en el navegador, así los datos de la empresa no salen del equipo. Vite compila rápido y entiende TypeScript |
 | **`node:http` + `pg`** | La API tiene 7 rutas: un framework no aporta lo suficiente para justificar otra dependencia. `pg` es el cliente de PostgreSQL más usado en Node |
 | **PostgreSQL** (Neon) | Las decisiones de conciliación necesitan transacciones ACID y bloqueo de filas (`FOR UPDATE`). `jsonb` guarda el resultado del motor tal cual |
-| **Netlify / Render / Neon** | Los tres tienen plan gratuito y despliegan desde el repositorio ([DESPLIEGUE.md](DESPLIEGUE.md)) |
+| **Vercel + Neon** | Un solo proyecto con plan gratuito: el panel va a la CDN, la API a una función que atiende `/api/*` y la base es PostgreSQL de Neon creada desde Vercel. Mismo dominio, sin CORS ([DESPLIEGUE_VERCEL.md](DESPLIEGUE_VERCEL.md)). Netlify + Render quedan como alternativa ([DESPLIEGUE.md](DESPLIEGUE.md)) |
 
 ## 3. Arquitectura
 
@@ -58,7 +58,7 @@ usuarios y autenticación, y facturación electrónica DIAN.
              └──────────────────────────────────────────────────────────────┘
                      ▲                                   ▲
                      │ alias de Vite                     │ workspace
-             apps/web (React, Netlify)  ──HTTP opcional──► apps/api (node:http + pg, Render)
+             apps/web (React, Vercel)   ──HTTP /api────────► apps/api (node:http + pg, función de Vercel)
                                                                 │
                                                                 ▼
                                                     PostgreSQL (Neon)

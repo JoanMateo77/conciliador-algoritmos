@@ -126,7 +126,14 @@ Rutas: `GET /salud`, `GET /plantillas`, `POST /conciliaciones`,
 `POST /conciliaciones/:id/coincidencias/:cid/confirmar` y
 `.../rechazar`. Los detalles están en [docs/CONTRATOS.md](docs/CONTRATOS.md) §9.
 
-Despliegue en Neon, Render y Netlify: [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
+Despliegue en producción en **Vercel + Neon** (panel, API y base en un solo proyecto):
+[docs/DESPLIEGUE_VERCEL.md](docs/DESPLIEGUE_VERCEL.md). Alternativa con Render y Netlify:
+[docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
+
+```bash
+npm run build:vercel   # arma .vercel/output (panel + función /api)
+DATABASE_URL=... npm run migrar   # crea las tablas (también se crean solas al arrancar)
+```
 
 ## Agregar un banco nuevo (sin programar)
 
@@ -229,12 +236,13 @@ conciliador/
 │   │   └── test/                pruebas con node:test
 │   └── plantillas/              formatos/*.json, muestras sintéticas, ESCENARIO.md
 ├── apps/
-│   ├── web/                     panel React 18 + Vite (Netlify)
-│   └── api/                     node:http + pg (Render + Neon), esquema.sql, pruebas
-├── scripts/medir.ts             mediciones de rendimiento
-├── docs/                        PLAN, CONTRATOS, DOCUMENTO_FINAL, DESPLIEGUE
+│   ├── web/                     panel React 18 + Vite
+│   └── api/                     node:http + pg, esquema.sql, entrada de Vercel (vercel.ts), pruebas
+├── scripts/                     medir.ts (rendimiento), construir-vercel.ts (salida para Vercel)
+├── docs/                        PLAN, CONTRATOS, DOCUMENTO_FINAL, DESPLIEGUE_VERCEL, DESPLIEGUE
 ├── .github/workflows/ci.yml     pruebas con PostgreSQL + build del panel
-├── render.yaml · netlify.toml   despliegue
+├── vercel.json                  despliegue principal (Vercel + Neon)
+├── render.yaml · netlify.toml   despliegue alternativo
 └── LICENSE
 ```
 
@@ -242,19 +250,18 @@ conciliador/
 
 | Nombre | Código | Rol |
 |---|---|---|
-| Joan Mateo Cardona Lorza | _(por completar)_ | Desarrollo |
-| _(por completar)_ | _(por completar)_ | _(por completar)_ |
-| _(por completar)_ | _(por completar)_ | _(por completar)_ |
+| Joan Mateo Cardona Lorza | _(por completar)_ | Proyecto individual: diseño, desarrollo y despliegue |
 
 ## Enlaces
 
 | Recurso | URL |
 |---|---|
-| Panel (Netlify) | <URL_NETLIFY> |
-| API (Render) | <URL_RENDER> |
-| Salud de la API | <URL_RENDER>/salud |
+| Panel (Vercel) | <URL_VERCEL> |
+| API | <URL_VERCEL>/api |
+| Salud de la API | <URL_VERCEL>/api/salud |
+| Repositorio | <URL_REPOSITORIO> |
 | Documento final | [docs/DOCUMENTO_FINAL.md](docs/DOCUMENTO_FINAL.md) |
-| Despliegue | [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md) |
+| Despliegue | [docs/DESPLIEGUE_VERCEL.md](docs/DESPLIEGUE_VERCEL.md) |
 
 ## Licencia
 

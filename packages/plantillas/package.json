@@ -1,0 +1,8 @@
+{
+  "name": "@conciliador/plantillas",
+  "version": "0.1.0",
+  "description": "Plantillas JSON de formatos bancarios y de pasarelas, con archivos de muestra sintéticos.",
+  "type": "module",
+  "exports": { ".": "./index.ts" },
+  "license": "MIT"
+}

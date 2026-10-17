@@ -1,0 +1,8 @@
+{
+  "name": "@conciliador/core",
+  "version": "0.1.0",
+  "description": "Motor de conciliación: estructuras propias, plantillas y cruce. Sin dependencias.",
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "license": "MIT"
+}

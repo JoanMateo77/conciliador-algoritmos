@@ -290,35 +290,31 @@ export function App() {
     <div className="app">
       <header className="cabecera">
         <div className="cabecera__marca">
-          <span className="logo" aria-hidden="true">⇄</span>
-          <div>
-            <h1>Conciliador de pagos</h1>
-            <p className="suave">Cruza el extracto del banco con tus ventas, con reglas a la medida de tu empresa.</p>
-          </div>
+          <svg className="logo" viewBox="0 0 24 24" aria-hidden="true">
+            <rect width="24" height="24" rx="6" />
+            <path d="M7 9.5h10l-3-3M17 14.5H7l3 3" />
+          </svg>
+          <h1>Conciliador de pagos</h1>
+          <p className="cabecera__lema">Cruza el extracto del banco con tus ventas</p>
         </div>
         <p className="privacidad">
-          <span aria-hidden="true">🔒</span> Tus archivos no salen de tu computador<span className="privacidad__mas">: todo se procesa en este navegador</span>.
+          <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5" /><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" /></svg>
+          <span>Tus archivos no salen de tu computador<span className="privacidad__mas">: se procesan en este navegador</span>.</span>
         </p>
       </header>
 
-      <nav className="pestanas" aria-label="Pasos">
-        {PESTANAS.map((p, i) => {
-          // Los pasos que ya tienen lo necesario se marcan, así se ve de un vistazo qué falta.
-          const hecho = (p.id === 'cargar' && listas) || ((p.id === 'resultados' || p.id === 'grafo') && Boolean(trabajo));
-          return (
-            <button
-              key={p.id}
-              type="button"
-              className={`pestana ${hecho ? 'pestana--hecha' : ''}`}
-              aria-current={pestana === p.id ? 'page' : undefined}
-              onClick={() => setPestana(p.id)}
-            >
-              <span className="pestana__num" aria-hidden="true">{hecho ? '✓' : i + 1}</span>
-              <span>{p.titulo}</span>
-              {hecho && <span className="sr-only"> (listo)</span>}
-            </button>
-          );
-        })}
+      <nav className="pestanas" aria-label="Secciones">
+        {PESTANAS.map((p) => (
+          <button
+            key={p.id}
+            type="button"
+            className="pestana"
+            aria-current={pestana === p.id ? 'page' : undefined}
+            onClick={() => setPestana(p.id)}
+          >
+            {p.titulo}
+          </button>
+        ))}
       </nav>
 
       <p className={`aviso ${aviso ? 'aviso--visible' : ''} ${aviso?.tipo === 'error' ? 'aviso--error' : ''}`} role="status" aria-live="polite">

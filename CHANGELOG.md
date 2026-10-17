@@ -19,9 +19,10 @@ medio (0.2 → 0.3) y una corrección sube el último.
   de `DATABASE_URL` para que todas las instancias acepten los mismos tokens.
   Guía: `docs/DESPLIEGUE_VERCEL.md`.
 
-- Panel rediseñado tras una revisión de UX: cabecera de marca, pestañas
-  numeradas que marcan los pasos listos (en móvil pasan a rejilla y ya no se
-  esconden), barra fija con «Conciliar» que dice qué falta cuando está
+- Panel rediseñado tras una revisión de UX con un estilo sobrio de herramienta
+  financiera: barra superior blanca, pestañas subrayadas (en móvil se desplazan
+  de lado), paleta neutra con el acento solo en la acción principal, íconos SVG
+  en vez de emojis y métricas planas con un punto de estado. Además: barra fija con «Conciliar» que dice qué falta cuando está
   deshabilitado, «Conciliar con este perfil» desde Perfil, montos del resumen
   en su propia fila sin partirse, errores de lectura en un recuadro visible,
   descripciones de plantillas con «Ver más», atajos con `<kbd>` y tablas con

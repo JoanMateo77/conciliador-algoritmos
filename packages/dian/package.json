@@ -1,0 +1,46 @@
+{
+  "name": "@conciliador/dian",
+  "version": "0.2.0",
+  "description": "Lector de facturas electrónicas DIAN (UBL 2.1) para cruzar pagos contra facturas.",
+  "keywords": [
+    "conciliacion",
+    "colombia",
+    "pagos",
+    "asobancaria",
+    "wompi",
+    "bre-b",
+    "dian",
+    "factura-electronica",
+    "ubl",
+    "cufe"
+  ],
+  "license": "MIT",
+  "author": "Joan Mateo Cardona Lorza",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/POR-COMPLETAR/conciliador.git",
+    "directory": "packages/dian"
+  },
+  "type": "module",
+  "exports": {
+    ".": {
+      "conciliador-src": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@conciliador/core": "^0.2.0"
+  }
+}

@@ -65,18 +65,18 @@ Reglas que garantizan estabilidad y escala:
 
 ## 4. Fases
 
-### MVP (entrega)
+### MVP (entrega) — hecho, versión 0.1.0
 
-| Fase | Contenido | Resultado |
-|---|---|---|
-| 0. Base | Monorepo, modelo de datos, CI con pruebas | Repo que corre `npm test` |
-| 1. Estructuras | Las 6 estructuras propias con pruebas | Rúbrica de estructuras cubierta |
-| 2. Plantillas | Validador, lector delimitado y de ancho fijo, transformaciones, detección con trie, 5 plantillas | Cualquier archivo soportado → movimientos estándar |
-| 3. Cruce | Exacto (hash), tolerancia (AVL), N:1 (subconjuntos), puntaje (heap), conflictos (grafo) | Coincidencias + excepciones con motivo |
-| 4. Perfiles | Tolerancia asimétrica, ventana de días, retenciones conocidas | Cada empresa ajusta el cruce sin código |
-| 5. Panel | Carga, detección, resultados, revisión con deshacer, asistente de plantillas, vista de grafo | Netlify |
-| 6. API | Sesiones y confirmación de matches en transacción PostgreSQL | Render + Neon |
-| 7. Cierre | README, documento final, despliegue | Entrega |
+| Fase | Contenido | Resultado | Estado |
+|---|---|---|---|
+| 0. Base | Monorepo, modelo de datos, CI con pruebas | Repo que corre `npm test` | Hecha |
+| 1. Estructuras | Las 6 estructuras propias con pruebas | Rúbrica de estructuras cubierta | Hecha |
+| 2. Plantillas | Validador, lector delimitado y de ancho fijo, transformaciones, detección con trie, 5 plantillas | Cualquier archivo soportado → movimientos estándar | Hecha |
+| 3. Cruce | Exacto (hash), tolerancia (AVL), N:1 (subconjuntos), puntaje (heap), conflictos (grafo) | Coincidencias + excepciones con motivo | Hecha |
+| 4. Perfiles | Tolerancia asimétrica, ventana de días, retenciones conocidas | Cada empresa ajusta el cruce sin código | Hecha |
+| 5. Panel | Carga, detección, resultados, revisión con deshacer, asistente de plantillas, vista de grafo | Netlify | Hecha |
+| 6. API | Sesiones y confirmación de matches en transacción PostgreSQL | Render + Neon | Hecha |
+| 7. Cierre | README, documento final, despliegue | Entrega | Hecha (115 pruebas) |
 
 ### Después de la entrega: escalado semana a semana
 
@@ -94,6 +94,23 @@ con una rama propia (`fase-08-formatos`, `fase-09-reglas`...) mezclada con
 | 6 (23–29 nov) | 13. Escala y estabilidad | Ingesta por lotes con cola persistente (tabla de trabajos en PostgreSQL), procesamiento en un worker aparte, paginación, índices; pruebas de carga con 10⁶ movimientos; métricas y registros estructurados | 10⁶ movimientos conciliados sin bloquear la API |
 | 7 (30 nov–6 dic) | 14. Librería pública | Compilación a JS + tipos, publicación `0.x` en npm, README bilingüe, documentación de la API, guía para aportar plantillas, versionado semántico y changelog | `npm install` y ejemplo de 10 líneas funcionan en un proyecto limpio |
 | 8 (7–13 dic) | 15. Colombia | Campo de Referencia de Pago de Bre-B (si el BanRep la aprueba); cruce pago ↔ factura con XML de la DIAN (CUFE); exportes para contabilidad | Ciclo pasarela → banco → factura cerrado en la demo |
+
+### Estado de las fases de escalado (17 de octubre de 2026, versión 0.2.0)
+
+Las fases 9 a 15 se construyeron antes del calendario semanal, en paralelo y
+con los contratos de [CONTRATOS.md](CONTRATOS.md) («Fases 9 a 15»). Quedan
+274 pruebas en verde (246 sin PostgreSQL).
+
+| Fase | Estado | Qué hay | Qué falta |
+|---|---|---|---|
+| 8. Validación con usuarios | **Parcial** | `scripts/anonimizar.ts` (reemplazos estables, formato exacto, también Excel) con pruebas; guía de entrevistas y de pedido de archivos en [GUIA_VALIDACION.md](GUIA_VALIDACION.md) | Las 5 a 10 entrevistas y los 3 a 5 archivos reales anonimizados convertidos en plantillas y vectores de prueba. Es lo único que no se puede hacer sin usuarios |
+| 9. Más formatos | **Hecha** | `@conciliador/excel` (SheetJS, sin tocar el núcleo), lectores registrables MT940 y camt.053 con plantillas y muestras, `plantillaVersion` en cada movimiento, columnas opcionales | — |
+| 10. Reglas avanzadas | **Hecha** | Reglas AND/OR ordenadas (igual, contiene, empieza por, regex segura, rangos), tarifas con vigencia, medio de pago y municipio, GMF clasificado como gasto, editores en el panel | — |
+| 11. Cruce N:M y explicabilidad | **Hecha** | Húngaro propio por componente, clusters `agrupadaNM`, `motivos` por movimiento; prueba de propiedad «nunca peor que el greedy»; `cruceOptimo: false` reproduce 0.1.0 | — |
+| 12. Multiempresa | **Hecha** | scrypt + JWT HS256 propios, roles, `empresa_id` en todo con llaves compuestas, plantillas y perfiles con historial inmutable, auditoría por usuario, pestaña *Servidor* en el panel | — |
+| 13. Escala y estabilidad | **Hecha** | Migraciones, cola `trabajos` con `FOR UPDATE SKIP LOCKED`, worker aparte con reintentos y apagado limpio, paginación por cursor, índices, registros JSON, `/metricas`, `scripts/carga.ts`: 10⁶ movimientos en ~10 s y `/salud` en 1 ms durante la carga | Mejora pendiente (no es criterio de la fase): índice día+monto en el pase 2 |
+| 14. Librería pública | **Lista para publicar** | `npm run build:lib` (JS + `.d.ts`), `exports` con `types`, metadatos, `files`, README bilingüe de `core`, `CHANGELOG.md`, `CONTRIBUTING.md`, versión 0.2.0 | `npm publish` con la cuenta del autor (y la URL real del repositorio en los `package.json`) |
+| 15. Colombia | **Parcial** | `referenciaPago` de Bre-B como llave del pase exacto; `@conciliador/dian` lee facturas UBL 2.1 (CUFE, NIT, IVA, retenciones); demo pagos B2B ↔ facturas en el panel | Exportes para contabilidad; ajustar Bre-B a la especificación final del BanRep cuando se publique |
 
 Principios para escalar sin rehacer:
 

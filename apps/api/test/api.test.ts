@@ -303,3 +303,34 @@ describe('API con PostgreSQL', { skip: URL_PRUEBA ? false : 'sin DATABASE_URL_PR
     assert.equal((await contarFilas(id)).e, 1);
   });
 });
+
+describe('API: regex de usuario y ReDoS (sin base de datos)', () => {
+  let servidor: Server;
+  let base: string;
+  before(async () => { ({ servidor, base } = await levantar({ pool: null })); });
+  after(() => cerrar(servidor));
+
+  const conRegla = (valor: string) => ({
+    ...cuerpoValido(),
+    perfil: {
+      ...PERFIL_DEMO,
+      reglas: [{ id: 'r', nombre: 'Regex', prioridad: 1, lado: 'banco', si: { todas: [{ campo: 'descripcion', op: 'regex', valor }] }, accion: { tipo: 'clasificar', categoria: 'x' } }],
+    },
+  });
+
+  test('el patrón del revisor se rechaza con 400 antes de conciliar', async () => {
+    const t0 = performance.now();
+    const r = await postJson(`${base}/conciliaciones`, conRegla('^(a+)+$'));
+    assert.equal(r.status, 400);
+    assert.match(JSON.stringify(await r.json()), /cuantificadores anidados/);
+    assert.ok(performance.now() - t0 < 1000);
+  });
+
+  test('sin token no se aceptan reglas con op regex (403), aunque sean inofensivas', async () => {
+    const r = await postJson(`${base}/conciliaciones`, conRegla('^GMF'));
+    assert.equal(r.status, 403);
+    assert.match((await r.json()).error.mensaje, /iniciar sesión/);
+    // Sin regex la demo anónima sigue igual.
+    assert.equal((await postJson(`${base}/conciliaciones`, cuerpoValido())).status, 200);
+  });
+});

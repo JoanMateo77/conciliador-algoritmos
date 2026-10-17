@@ -20,7 +20,23 @@ export interface Movimiento {
   referenciaPago?: string; // reservado para la Referencia de Pago de Bre-B
   desglose?: Desglose;
   plantilla: string;       // id de la plantilla que lo produjo
+  plantillaVersion?: number; // versión de esa plantilla, para auditar lecturas antiguas
   linea: number;           // línea del archivo original (1 = primera)
+  documento?: DocumentoFiscal; // presente cuando el movimiento viene de una factura electrónica
+}
+
+// Datos de una factura electrónica DIAN (UBL 2.1) que sirven para cruzar pago ↔ factura.
+export interface DocumentoFiscal {
+  tipo: 'factura' | 'notaCredito' | 'notaDebito';
+  numero: string;
+  cufe: string;
+  nitEmisor: string;
+  nitAdquirente: string;
+  nombreAdquirente?: string;
+  fechaVencimiento?: string;
+  subtotalCentavos?: number;
+  ivaCentavos?: number;
+  retencionesCentavos?: number;
 }
 
 export class ErrorDeDato extends Error {}

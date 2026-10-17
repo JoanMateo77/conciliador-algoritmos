@@ -1,6 +1,6 @@
 // Arma la salida para Vercel (Build Output API v3) en .vercel/output:
 //   static/              el panel compilado por Vite
-//   functions/api.func/  la API empaquetada en un solo archivo con esbuild
+//   functions/api.func/  la API empaquetada en un solo archivo con esbuild, más sus migraciones SQL
 //   config.json          rutas: /api/* a la función y el resto al panel
 // Así Vercel no tiene que entender el monorepo ni el TypeScript sin compilar.
 import { execSync } from 'node:child_process';
@@ -28,12 +28,14 @@ await build({
   format: 'esm',
   target: 'node22',
   external: ['pg-native'],
+  // Los paquetes del monorepo se toman desde src (TypeScript), igual que en desarrollo.
+  conditions: ['conciliador-src'],
   // Algunas dependencias CommonJS usan require; en ESM hay que crearlo.
   banner: { js: "import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);" },
   logLevel: 'info',
 });
-// bd.ts lee esquema.sql junto al módulo, así que viaja al lado del paquete.
-cpSync(`${raiz}apps/api/src/esquema.sql`, `${funcion}/esquema.sql`);
+// migraciones.ts lee la carpeta migraciones/ junto al módulo, así que viaja al lado del paquete.
+cpSync(`${raiz}apps/api/src/migraciones`, `${funcion}/migraciones`, { recursive: true });
 
 writeFileSync(`${funcion}/.vc-config.json`, JSON.stringify({
   runtime: 'nodejs22.x',

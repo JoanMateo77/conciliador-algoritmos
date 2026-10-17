@@ -1,7 +1,7 @@
 {
   "name": "conciliador",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Librería modular de conciliación de pagos para Colombia, adaptable por plantillas y perfiles.",
   "type": "module",
   "workspaces": [
@@ -19,7 +19,11 @@
     "start:api": "npm start -w apps/api",
     "typecheck": "tsc -p tsconfig.json && tsc -p apps/web/tsconfig.json",
     "build:vercel": "node scripts/construir-vercel.ts",
-    "migrar": "node apps/api/src/migrar.ts"
+    "migrar": "node apps/api/src/migrar.ts",
+    "build:lib": "node scripts/compilar-lib.ts",
+    "medir": "node scripts/medir.ts",
+    "carga": "node scripts/carga.ts",
+    "anonimizar": "node scripts/anonimizar.ts"
   },
   "license": "MIT",
   "devDependencies": {

@@ -1,9 +1,9 @@
 {
   "id": "banco-csv-generico",
   "nombre": "Extracto bancario CSV (genérico Colombia)",
-  "version": 1,
+  "version": 2,
   "lado": "banco",
-  "descripcion": "Extracto descargado del portal de un banco colombiano: separador ';', fechas dd/MM/yyyy y montos con miles '.' y decimales ','. Se descartan las filas de saldo y totales y los débitos (solo interesan los abonos).",
+  "descripcion": "Extracto descargado del portal de un banco colombiano: separador ';', fechas dd/MM/yyyy y montos con miles '.' y decimales ','. Se descartan las filas de saldo y totales y los débitos (solo interesan los abonos). La columna REFERENCIA PAGO es opcional: si el extracto la trae (transferencias Bre-B), va a referenciaPago.",
   "fuente": "Estructura común de los extractos CSV que ofrecen los portales bancarios colombianos (columnas fecha, descripción, referencia, valor y saldo). No corresponde a un banco en particular.",
   "tipo": "delimitado",
   "codificacion": "utf-8",
@@ -22,6 +22,7 @@
     "fecha": "FECHA",
     "descripcion": "DESCRIPCION",
     "referencia": "REFERENCIA",
-    "monto": "VALOR"
+    "monto": "VALOR",
+    "referenciaPago": { "de": "REFERENCIA PAGO", "opcional": true }
   }
 }

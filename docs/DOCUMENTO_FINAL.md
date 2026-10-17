@@ -2,8 +2,9 @@
 
 Proyecto de Algoritmos II (UAO), 2026. Autor: Joan Mateo Cardona Lorza.
 
-Este documento describe lo que hay **construido** en el repositorio. Lo que
-falta está en la sección 9, junto con las fases que siguen según
+Este documento describe lo que hay **construido** en el repositorio: el MVP
+(fases 0 a 7, versión 0.1.0) y las fases de escalado 8 a 15 (versión 0.2.0).
+Lo que falta está en la sección 10, y el estado de cada fase en
 [PLAN.md](PLAN.md).
 
 ## 1. Alcance
@@ -12,22 +13,21 @@ El conciliador cruza dos listas: lo que entró al banco (abonos) y lo que la
 empresa vendió (ventas de una pasarela o del ERP). Por cada abono dice con qué
 venta o ventas corresponde, qué tan seguro está y por qué hay diferencia.
 
-Lo que hace el MVP:
+| Pieza | MVP (0.1.0) | Escalado (0.2.0) |
+|---|---|---|
+| Formatos | Delimitados (CSV con comillas, `;`, `\t`, `\|`) y ancho fijo, descritos con una plantilla JSON | Excel (`@conciliador/excel`), MT940 y camt.053 como lectores registrables, facturas electrónicas DIAN UBL 2.1 (`@conciliador/dian`). Cada movimiento guarda `plantillaVersion` |
+| Plantillas incluidas | Extracto bancario CSV, Asobancaria 2001 (ancho fijo, latin1), Wompi, Mercado Pago, ventas de un ERP | MT940 genérico, camt.053 genérico; columna opcional `REFERENCIA PAGO` (Bre-B) en el extracto CSV (versión 2) |
+| Detección | Por encabezados o prefijo de la primera línea (Trie) | Los lectores registrados aportan su propia detección (MT940 y camt.053 por contenido) |
+| Cruce | Exacto, 1:1 con tolerancia (greedy por componente) y agrupado N:1 | Referencia de Pago de Bre-B como llave del exacto; asignación **óptima (Húngaro)** por componente; clusters **N:M**; motivo de cada movimiento sin cruzar |
+| Perfiles | Tolerancia asimétrica, ventana de días, tamaño máximo de grupo, umbrales, retenciones | Reglas AND/OR ordenadas, tarifas con vigencia, medio de pago y municipio, `cruceOptimo` |
+| Revisión | Confirmar, rechazar, emparejar a mano, deshacer y rehacer, bitácora | Igual, con `agrupadaNM` y movimientos clasificados por reglas |
+| Panel | React + Vite; todo en el navegador | Excel, MT940, camt.053 y XML DIAN; editores de reglas y tarifas; pestaña *Servidor* (ingreso, versiones, cola) |
+| API | `node:http` + PostgreSQL, cada decisión en una transacción | Multiempresa con JWT y roles, plantillas y perfiles versionados, migraciones, cola de trabajos con worker aparte, paginación, métricas |
+| Librería | Solo dentro del monorepo | Cuatro paquetes compilables a JS + `.d.ts` (`npm run build:lib`), listos para npm |
+| Pruebas | 115 (108 + 7 con PostgreSQL) | **274** con `node:test` (246 sin base de datos; 28 más de la API con PostgreSQL). CI con tipos, pruebas, `build:lib` y panel |
 
-| Pieza | Qué hay |
-|---|---|
-| Formatos | Archivos delimitados (CSV con comillas, `;`, `\t`, `\|`) y de ancho fijo. Todo se describe con una plantilla JSON |
-| Plantillas incluidas | Extracto bancario CSV genérico, recaudo Asobancaria 2001 (ancho fijo, latin1), transacciones Wompi, liquidación Mercado Pago y ventas CSV genéricas de un ERP |
-| Detección | Elige la plantilla de un archivo por sus encabezados o por el prefijo de la primera línea |
-| Cruce | Exacto, 1:1 con tolerancia y agrupado N:1 (suma de subconjuntos) |
-| Perfiles | Tolerancia asimétrica (en centavos o en %), ventana de días antes y después, tamaño máximo de grupo, umbrales y retenciones conocidas |
-| Revisión | Confirmar, rechazar (los movimientos quedan libres), emparejar a mano, deshacer y rehacer, bitácora que solo crece |
-| Panel | React + Vite. Carga con detección, demos, perfil, resultados, grafo de conflictos, asistente de plantillas. Todo se procesa en el navegador |
-| API | `node:http` + PostgreSQL. Guarda la conciliación y cada decisión en una transacción |
-| Pruebas | 108 pruebas con `node:test` (más 7 de la API que solo corren con PostgreSQL). CI en GitHub Actions |
-
-Fuera del alcance de esta entrega: Excel, MT940/camt.053, cruce N:M general,
-usuarios y autenticación, y facturación electrónica DIAN.
+Pendiente (sección 10): entrevistas y archivos reales de la fase 8, el
+`npm publish` de la fase 14 y los exportes contables de la fase 15.
 
 ## 2. Tecnologías y por qué
 
@@ -38,8 +38,11 @@ usuarios y autenticación, y facturación electrónica DIAN.
 | **Núcleo sin dependencias** | Las estructuras de datos son propias (lo pide la materia) y el motor se puede auditar completo. Funciona igual en Node y en el navegador |
 | **`node:test`** | Viene con Node: cero dependencias para probar |
 | **React 18 + Vite** | El panel procesa los archivos en el navegador, así los datos de la empresa no salen del equipo. Vite compila rápido y entiende TypeScript |
-| **`node:http` + `pg`** | La API tiene 7 rutas: un framework no aporta lo suficiente para justificar otra dependencia. `pg` es el cliente de PostgreSQL más usado en Node |
-| **PostgreSQL** (Neon) | Las decisiones de conciliación necesitan transacciones ACID y bloqueo de filas (`FOR UPDATE`). `jsonb` guarda el resultado del motor tal cual |
+| **`node:http` + `pg`** | La API tiene una tabla de rutas propia (18 rutas): un framework no aporta lo suficiente para justificar otra dependencia. `pg` es el cliente de PostgreSQL más usado en Node |
+| **PostgreSQL** (Neon) | Las decisiones de conciliación necesitan transacciones ACID y bloqueo de filas (`FOR UPDATE`). `jsonb` guarda el resultado del motor tal cual. Además sirve de **cola** (`FOR UPDATE SKIP LOCKED`), así no hace falta Redis ni otro servicio |
+| **`node:crypto`** | scrypt para contraseñas y HMAC-SHA256 para los JWT, sin librerías de autenticación |
+| **SheetJS (`xlsx`)** | Solo en `@conciliador/excel`: leer `.xlsx`/`.xls` bien es mucho trabajo y el núcleo debe seguir sin dependencias. Se instala desde el CDN oficial de SheetJS (la versión de npm está desactualizada) |
+| **`tsc` para la librería** | `npm run build:lib` genera JS + `.d.ts` con `rewriteRelativeImportExtensions`. En el monorepo se sigue usando el `.ts` (condición `conciliador-src` en `.npmrc`) |
 | **Netlify / Render / Neon** | Los tres tienen plan gratuito y despliegan desde el repositorio ([DESPLIEGUE.md](DESPLIEGUE.md)) |
 
 ## 3. Arquitectura
@@ -49,19 +52,26 @@ usuarios y autenticación, y facturación electrónica DIAN.
                                      │
                                      ▼
  archivos ──► packages/core ─────────────────────────────────────────────────┐
-             plantillas/  validar · csv (parser propio) · leer · registro    │
+             plantillas/  validar · csv · leer · registro · lectores         │
+                          mt940 · camt053 · xml (parser propio)              │
              ingesta.ts   procesarArchivos (Cola)                            │
              modelo.ts    Movimiento estándar (centavos enteros)             │
-             cruce/       perfil · puntaje · pases · conciliar               │
+             cruce/       perfil · reglas · tarifas · puntaje · pases        │
+                          hungaro · motivos · conciliar                      │
              sesion.ts    SesionRevision (Pila ×2 + bitácora)                │
              estructuras/ Cola · Pila · ArbolAVL · Trie · MinHeap · Grafo    │
              └──────────────────────────────────────────────────────────────┘
+   adaptadores: packages/excel (SheetJS) · packages/dian (UBL 2.1, usa el xml del núcleo)
                      ▲                                   ▲
                      │ alias de Vite                     │ workspace
              apps/web (React, Netlify)  ──HTTP opcional──► apps/api (node:http + pg, Render)
-                                                                │
-                                                                ▼
-                                                    PostgreSQL (Neon)
+                                                          │  auth · empresas · rutas
+                                                          │  POST ?asincrono=1 → INSERT trabajos
+                                                          ▼
+                                              PostgreSQL (Neon) ◄── apps/api/src/worker.ts
+                                              migraciones · empresas    (proceso aparte,
+                                              datos por empresa_id       FOR UPDATE SKIP LOCKED)
+                                              trabajos (cola)
 ```
 
 Reglas que sigue el código:
@@ -79,6 +89,14 @@ Reglas que sigue el código:
    tabla `eventos` solo recibe `INSERT`.
 5. **Un error no frena el lote.** Una línea mala queda en `errores` con su
    número, y un archivo sin plantilla no detiene a los demás.
+6. **Todo lo nuevo es opcional.** Un perfil, una plantilla o una llamada de
+   0.1.0 sigue siendo válida. Con `cruceOptimo: false` el cruce da
+   exactamente el resultado de 0.1.0, y con el perfil de la demo el resultado
+   es el mismo de 0.1.0 aun con el cruce óptimo (`reglas.test.ts` lo compara
+   con un resultado guardado del MVP, `test/fixtures/demo-mvp.json`).
+7. **Un formato es un dato con versión.** Si el mapeo de una plantilla
+   cambia, sube `version`, y cada movimiento guarda con qué versión se leyó
+   (`banco-csv-generico` pasó a la 2 al agregar `REFERENCIA PAGO`).
 
 ## 4. Estructuras de datos
 
@@ -174,7 +192,25 @@ fuerza bruta con datos pseudoaleatorios y la verificación del balance del AVL).
 - **Complejidad.** `agregarNodo` y `agregarArista` O(1). `vecinos(id)`
   O(grado). `quitarNodo` O(grado). `componentes`, `nodos` y `aristas` O(V + E).
 
-### 4.7 Estructuras del lenguaje que también se usan
+### 4.7 Parser XML propio (`plantillas/xml.ts`)
+
+- **Problema que resuelve.** camt.053 y las facturas DIAN son XML con
+  namespaces (`cbc:`, `cac:`, o un namespace por defecto que cada emisor
+  escribe distinto). El núcleo no puede depender de una librería.
+- **Cómo funciona.** Un solo recorrido del texto con una **Pila** de elementos
+  abiertos; cada elemento hereda el mapa de namespaces de su padre y resuelve
+  su prefijo a URI. La navegación compara por URI + nombre local (DIAN) o solo
+  por nombre local (camt.053, que cambia de URI entre versiones). Las líneas y
+  columnas de los errores salen de una búsqueda binaria sobre los inicios de
+  línea.
+- **Una sola política de seguridad.** Rechaza `DOCTYPE` (evita la expansión de
+  entidades, «billion laughs», y las entidades externas), entidades
+  desconocidas y `&` sin escapar. Antes había dos parsers casi iguales (uno en
+  el núcleo y otro en `dian`) con políticas distintas ante DOCTYPE; se
+  unificaron en el del núcleo y `dian` lo reexporta.
+- **Complejidad.** O(largo del texto) para analizar; O(hijos) por paso de ruta.
+
+### 4.8 Estructuras del lenguaje que también se usan
 
 `Map` y `Set` (tablas hash) en el pase 1 (índice `monto|referencia`), en el
 estado ocupado/libre de la sesión y en el registro de plantillas. Son parte del
@@ -190,8 +226,21 @@ ni montos no enteros, y cada fecha se convierte una sola vez a número de día
 (restar enteros es más barato que comparar fechas). Cada pase marca como
 ocupado lo que empareja, así **ningún movimiento queda en dos coincidencias**.
 
+### Antes de los pases: reglas del perfil (`reglas.ts`)
+
+`compilarReglas` compila una sola vez las regex (ya revisadas contra ReDoS) y
+devuelve una función que, para cada movimiento, da la primera regla de cada
+tipo de acción por `prioridad`. Las de `clasificar` sacan el movimiento del
+cruce (van a `resultado.clasificados`, p. ej. el GMF 4×1000 como
+`gasto:GMF`); `exigirReferencia` y `tolerancia` cambian lo que aceptan los
+pases para ese movimiento. Costo O((n + m)·c), con c condiciones (≤ 200
+reglas × 20 condiciones por perfil).
+
 ### Pase 1: exacta (O(n + m) esperado)
 
+0. **Bre-B** (0.2.0): si el abono trae `referenciaPago` (Referencia de Pago
+   de Bre-B) y una venta tiene la misma `referenciaPago` o `referencia`, esa
+   es la llave principal, porque identifica la transferencia de punta a punta.
 1. Se crea un `Map` de `monto|referencia` a una lista de ventas. Por cada
    abono se toma la siguiente venta libre con esa clave. Puntaje 1.
 2. Con lo que quedó libre se repite lo mismo con `monto|fecha`. Puntaje 0,95,
@@ -215,9 +264,12 @@ ocupado lo que empareja, así **ningún movimiento queda en dos coincidencias**.
 3. Los candidatos son aristas del **grafo bipartito**. Por cada componente
    conexa, las aristas se ordenan de mayor a menor puntaje y se asignan sin
    repetir nodos (*greedy* por componente). Desempates: menor diferencia y
-   luego orden del archivo. Esto no garantiza el emparejamiento óptimo (eso es
-   la fase 11 con el método húngaro). Sí evita el error del greedy ingenuo,
-   que va abono por abono y deja sin pareja al que tenía una sola opción.
+   luego orden del archivo. Esto no garantiza el emparejamiento óptimo. Sí
+   evita el error del greedy ingenuo, que va abono por abono y deja sin
+   pareja al que tenía una sola opción. Desde 0.2.0, con `cruceOptimo` (por
+   defecto) y componentes de hasta 60 nodos, se usa el **algoritmo Húngaro**
+   (ver abajo); el greedy queda para componentes más grandes y para
+   `cruceOptimo: false`.
 
 Complejidad: O(m log m + n·(log m + k·L²) + E log E), donde k es el número de
 ventas en el rango de monto de cada abono, L el largo de las referencias
@@ -244,7 +296,66 @@ ventas en el rango de monto de cada abono, L el largo de las referencias
 Complejidad: O(m log m + n·(log m + w + B)), con B ≤ 50.000 nodos. Es
 exponencial solo dentro de una ventana acotada, como pide el plan.
 
-### Explicación de diferencias (`puntaje.ts`)
+### Pase 2 óptimo: algoritmo Húngaro (`hungaro.ts`)
+
+- **Problema.** Dentro de una componente del grafo, elegir parejas abono↔venta
+  sin repetir nodos que **maximicen la suma de puntajes**. El greedy puede
+  equivocarse: una arista alta (0,95) que bloquea dos buenas (0,9 + 0,9) gana
+  0,95 en vez de 1,8.
+- **Algoritmo.** Kuhn-Munkres con potenciales (implementación propia,
+  `asignacionMinima`): por cada fila busca un camino aumentante de costo
+  reducido mínimo y actualiza los potenciales u, v. `emparejamientoMaximo`
+  convierte el problema a costo mínimo sobre una matriz cuadrada k×k
+  (k = max(abonos, ventas)), con costo 0 para «sin pareja», así un nodo puede
+  quedar libre.
+- **Desempates reproducibles.** Los pesos son enteros: el puntaje con 4
+  decimales en la parte alta (× 2²⁰) y, en la baja, el puesto de la arista en
+  el orden de desempate del greedy. A igual suma gana la misma preferencia
+  que usaba el MVP, y no hay errores de redondeo al sumar.
+- **Complejidad.** O(n²·m) con n ≤ m; para la matriz cuadrada, **O(k³)**. Por
+  eso solo se usa en componentes de hasta 60 nodos (`MAX_NODOS_OPTIMO`):
+  60³ ≈ 216.000 operaciones por componente como máximo. Con 5 candidatos por
+  abono casi todas las componentes son mucho menores.
+- **Garantía probada.** `hungaro.test.ts` compara contra fuerza bruta en
+  matrices pequeñas y verifica la propiedad del plan: el óptimo **nunca suma
+  menos que el greedy**, en componentes pseudoaleatorias y en `conciliar`
+  completo.
+
+### Pase 4: N:M, suma de subconjuntos por componente
+
+Para lo que siguió libre tras el pase 3 (solo con `cruceOptimo`):
+
+1. Se arma otro `GrafoBipartito` abono↔venta con las ventas de la ventana de
+   fechas de cada abono (abonos con más de 40 candidatas no entran).
+2. Por cada componente con **2 o más abonos**, hasta 24 nodos
+   (`MAX_NODOS_NM`) y hasta 6 abonos (`MAX_ABONOS_NM`), se prueban los
+   subconjuntos de 2 o más abonos (como mucho 2⁶ − 6 − 1 = 57). Para cada uno
+   se suman sus montos y se busca, con el mismo **backtracking con poda** del
+   pase 3, el subconjunto de ventas vecinas (1 a `maxGrupo`) cuya suma cae en
+   la tolerancia, con presupuesto de 20.000 nodos. Cada abono del grupo debe
+   tener al menos una venta del grupo en su ventana.
+3. Se toma el mejor cluster (puntaje del grupo × 0,95, siempre `sugerida`), se
+   ocupan sus nodos y se repite con lo que queda de la componente.
+4. Componentes más grandes o búsquedas cortadas por el presupuesto se informan
+   en `pases` («agrupadaNM omitida») y en `motivos`.
+
+Complejidad: por componente O(2ᵃ·B) con a ≤ 6 y B ≤ 20.000 (constante
+acotada); en total O(m log m + E + c·2ᵃ·B) con c componentes candidatas. Con
+`maxGrupo` 0 o 1 el pase no corre (igual que el pase 3), para que quien usaba
+`maxGrupo: 1` como «no agrupar» en 0.1.0 siga sin grupos.
+
+### Por qué no cruzó (`motivos.ts`)
+
+Después de los pases, cada movimiento libre recibe una frase en español con lo
+que los pases anotaron y una revisión de su ventana de fechas (búsqueda
+binaria sobre los movimientos ordenados por día): sin candidatos en la
+ventana, monto fuera de tolerancia por $X (con la pareja más cercana), mejor
+candidato bajo el umbral, candidato tomado por otra coincidencia (cuál y con
+qué puntaje), regla de referencia que nadie cumple, demasiados candidatos para
+agrupar, o débito/venta negativa. Costo O(s·w), s sin cruzar y w movimientos
+por ventana.
+
+### Explicación de diferencias (`puntaje.ts`, `tarifas.ts`)
 
 Por cada coincidencia con faltante se busca, en orden:
 
@@ -256,16 +367,38 @@ Por cada coincidencia con faltante se busca, en orden:
 Se acepta un margen de ±1 %. Ejemplo real de la demo: «Faltan $24.198,20
 (4,65 % de $520.000) ≈ comisión 3,15 % + ReteFuente 1,5 % ($7.800)».
 
+Si el perfil trae `tarifas`, primero se calculan las vigentes a la fecha del
+abono (la más específica por nombre: con medio de pago y municipio antes que
+sin ellos, la de vigencia más reciente) y se busca la combinación más simple
+que explica el faltante, respetando dependencias (el IVA de la comisión solo
+con la comisión, ReteIVA solo con el IVA). Se prueban a lo sumo 2¹⁰
+combinaciones (`MAX_NOMBRES_TARIFA`).
+
 ### Total
 
-Tiempo O((n + m) log m + n·k), con el pase 3 acotado por constantes. Memoria
-O(n + m). La sección 7 muestra que **k** es lo que domina en la práctica.
+Tiempo O((n + m) log m + n·k), con el pase 3, el Húngaro y el pase N:M
+acotados por constantes. Memoria O(n + m). La sección 8 muestra que **k** es
+lo que domina en la práctica.
 
 ## 6. Base de datos y transacciones
 
-Esquema en `apps/api/src/esquema.sql`. Se aplica al arrancar, es idempotente y
-usa un *advisory lock* para que dos instancias que arrancan a la vez no
-choquen.
+El esquema vive en **migraciones numeradas** (`apps/api/src/migraciones/`):
+
+| Migración | Qué hace |
+|---|---|
+| `001_inicial.sql` | El esquema del MVP (antes `esquema.sql`) |
+| `002_multiempresa.sql` | Empresas, usuarios, `empresa_id` en todo, plantillas y perfiles versionados, auditoría |
+| `003_trabajos.sql` | Cola persistente de trabajos |
+| `004_cruce_ampliado.sql` | Tipo `agrupadaNM` y columna `extra jsonb` para lo que el núcleo agregue |
+
+`aplicarMigraciones` toma un *advisory lock* (dos instancias que arrancan a la
+vez no chocan), corre cada archivo pendiente **una vez** en su propia
+transacción y lo anota en la tabla `migraciones` con su SHA-256; si alguien
+edita una migración ya aplicada, se registra un aviso en vez de reaplicarla.
+La API y el worker migran al arrancar. Una base creada por 0.1.0 se migra sin
+perder datos: sus filas quedan en la empresa pública `demo`.
+
+### 6.1 Modelo del MVP
 
 ```
 conciliaciones (id uuid PK, creada, archivo_banco, archivo_ventas,
@@ -323,112 +456,251 @@ algo dentro de una decisión, el estado no cambia» y «confirmaciones
 simultáneas: solo una gana» (`apps/api/test/api.test.ts`) lo comprueban contra
 PostgreSQL real.
 
-## 7. Mediciones
+### 6.2 Modelo multiempresa
 
-Script: [`scripts/medir.ts`](../scripts/medir.ts). Genera ventas y abonos
+```
+empresas (id uuid PK, nombre, codigo UNIQUE — solo 'demo' lo tiene)
+   │ 1
+   ├── N usuarios (id, empresa_id, nombre, correo UNIQUE lower(), hash_contrasena 'scrypt$N$r$p$sal$hash',
+   │               rol CHECK admin|analista|lector, activo)
+   ├── N conciliaciones (+ empresa_id, usuario_id, perfil_id, perfil_version; UNIQUE (id, empresa_id))
+   │        └── coincidencias · movimientos · eventos (+ empresa_id;
+   │              FK (conciliacion_id, empresa_id) → conciliaciones (id, empresa_id))
+   │              eventos.usuario_id = quién decidió (auditoría)
+   ├── N plantillas_empresa (empresa_id, id, lado, version_actual)
+   │        └── N plantillas_versiones (empresa_id, plantilla_id, version, contenido jsonb, usuario_id)
+   ├── N perfiles_empresa (empresa_id, id, version_actual)
+   │        └── N perfiles_versiones (empresa_id, perfil_id, version, contenido jsonb, usuario_id)
+   └── N trabajos (cola, sección 6.3)
+```
+
+Decisiones:
+
+- **Aislamiento en la base, no solo en la API.** Toda tabla con datos de
+  negocio lleva `empresa_id` y toda consulta filtra por la empresa del token.
+  Además las hijas tienen una llave foránea **compuesta** `(conciliacion_id,
+  empresa_id)`: aunque la API tuviera un error, la base no acepta un
+  movimiento de la empresa A colgado de una conciliación de la empresa B. Un
+  disparador completa `empresa_id` desde la conciliación si el `INSERT` no lo
+  trae.
+- **Historial inmutable.** Guardar una plantilla o un perfil crea la versión
+  `version_actual + 1`; un disparador rechaza `UPDATE` y `DELETE` en las
+  tablas de versiones, y `UPDATE` en `eventos`. Una conciliación guarda el
+  `perfil_id` y la `perfil_version` con que se hizo, así se puede repetir
+  aunque el perfil cambie después.
+- **Índices para los filtros reales**: `(empresa_id, creada DESC, id DESC)` en
+  conciliaciones (la paginación por cursor recorre ese índice), usuarios por
+  empresa, eventos por usuario.
+- **Paginación por cursor** (*keyset*): el cursor es la clave de la última
+  fila vista en base64url; cuesta lo mismo en la página 1 que en la 1.000 y no
+  repite ni salta filas si entran nuevas.
+
+### 6.3 Cola persistente con `FOR UPDATE SKIP LOCKED`
+
+`POST /conciliaciones?asincrono=1` valida el cuerpo, inserta una fila en
+`trabajos` (estado `pendiente`, la entrada en `carga jsonb`) y responde **202**
+con el id. La API no concilia: no se bloquea con un archivo grande. Un
+proceso aparte (`apps/api/src/worker.ts`, `npm run worker -w apps/api`) toma
+trabajos así:
+
+```sql
+UPDATE trabajos t SET estado = 'procesando', intentos = t.intentos + 1, toma = $1, worker = $2, tomado_en = now()
+WHERE t.id = (SELECT id FROM trabajos WHERE estado = 'pendiente' AND disponible_en <= now()
+              ORDER BY disponible_en, creado LIMIT 1 FOR UPDATE SKIP LOCKED)
+RETURNING ...
+```
+
+- **Por qué `SKIP LOCKED`.** Con `FOR UPDATE` a secas, dos workers esperarían
+  la misma fila. Con `SKIP LOCKED` cada uno salta las filas que otro ya
+  bloqueó y toma la siguiente: varios workers trabajan en paralelo y **nunca
+  dos procesan el mismo trabajo** (prueba «dos workers concurrentes procesan
+  cada trabajo exactamente una vez»). Es una cola FIFO por `disponible_en`
+  sobre un índice parcial `WHERE estado = 'pendiente'`, así el costo de tomar
+  no crece con los trabajos ya hechos.
+- **Guardar y cerrar en una transacción.** El worker concilia y, en **una**
+  transacción, guarda la conciliación y marca el trabajo `hecho`. El cierre
+  exige que la `toma` (un uuid de esa toma) siga siendo la suya: si el
+  trabajo se dio por perdido y otro worker lo tomó, el lento hace `ROLLBACK` y
+  nada se guarda dos veces.
+- **Reintentos con límite.** Un error de datos (4xx, regex que agota su
+  tiempo) marca `fallido` sin reintentar. Otro error (base caída) devuelve el
+  trabajo a `pendiente` con espera exponencial (2 s, 4 s, 8 s… hasta 5 min)
+  hasta `max_intentos` (3).
+- **Workers caídos.** Un trabajo en `procesando` por más de 10 minutos vuelve a
+  la cola (o queda `fallido` si no le quedan intentos).
+- **Apagado limpio.** Ante `SIGTERM` el worker deja de tomar, termina el
+  trabajo en curso (tope de 25 s, Render da 30) y cierra el pool.
+
+Complejidad: tomar un trabajo es O(log t) sobre el índice parcial; el trabajo
+en sí cuesta lo mismo que `conciliar` más un `INSERT` masivo por tabla.
+
+## 7. Seguridad
+
+| Riesgo | Medida |
+|---|---|
+| Contraseñas robadas de la base | **scrypt** (N = 16384, r = 8, p = 1) con sal aleatoria de 16 bytes por usuario; los parámetros viajan con el hash para endurecerlos sin invalidar los viejos. Comparación con `timingSafeEqual` |
+| Tokens falsificados | **JWT HS256** propio con `node:crypto`: solo se acepta `alg: HS256` (un token `none` u otro algoritmo se rechaza antes de mirar la firma), firma comparada en tiempo constante, `exp` obligatorio (8 h por defecto). Secreto en `JWT_SECRETO`; un usuario desactivado deja de pasar aunque su token no haya vencido |
+| Una empresa ve datos de otra | `empresa_id` del token en toda consulta + llaves foráneas compuestas en la base (sección 6.2). Pruebas de aislamiento en `multiempresa.test.ts` y `cola.test.ts` |
+| Permisos | Roles jerárquicos `lector` < `analista` < `admin` por ruta. Sin token se opera como analista anónimo de la empresa `demo` (las rutas del MVP siguen funcionando) y no se administra nada |
+| Fuerza bruta en el ingreso | Límite por IP en `/auth/ingreso` y `/auth/registro` (10 por minuto, responde 429). Detrás de Render la IP sale de `X-Forwarded-For` solo si `CONFIAR_PROXY=1` |
+| ReDoS con regex de usuario | `revisarRegex` (`core/src/regexSegura.ts`): ≤ 200 caracteres, sin cuantificadores anidados `(a+)+`, sin `(a|b)+`, sin referencias hacia atrás, a lo sumo dos `*`/`+`. Al ejecutarlas el texto se recorta a 256 caracteres y un presupuesto de tiempo corta con `ErrorRegexCostosa` (422 en la API, `fallido` sin reintento en la cola). La demo anónima no acepta reglas `regex` (403). Perfiles: ≤ 200 reglas, ≤ 20 condiciones |
+| XML malicioso | El parser propio rechaza `DOCTYPE` (sin expansión de entidades ni entidades externas) y entidades desconocidas, para camt.053 y DIAN por igual |
+| Cuerpos enormes | Máximo 2 MB por petición (413) |
+| Fugas en errores | Un 500 responde «Error interno del servidor»; el detalle SQL queda solo en el registro JSON |
+| Historial alterado | Versiones de plantillas y perfiles y la bitácora de eventos son de solo agregar (disparadores) |
+| Datos personales | El panel procesa en el navegador; la API solo guarda lo que se le envía; `scripts/anonimizar.ts` para donar archivos reales; todas las muestras son sintéticas |
+
+## 8. Mediciones
+
+Scripts: [`scripts/medir.ts`](../scripts/medir.ts) y
+[`scripts/carga.ts`](../scripts/carga.ts). Generan ventas y abonos
 **sintéticos y deterministas** con un generador pseudoaleatorio con semilla
 fija (mulberry32). La mezcla es: 45 % pares exactos, 30 % con comisión de
 2,5–4,5 % y referencia truncada, 15 % de ventas abonadas en grupos de 2 a 4,
-5 % de ventas sin abono y 5 % de abonos sin venta. Luego mide `conciliar` con
-`PERFIL_POR_DEFECTO`, tras una corrida de calentamiento, y reporta la mediana
-de 5 corridas (3 para 100.000).
+5 % de ventas sin abono y 5 % de abonos sin venta. `medir.ts` mide
+`conciliar` con `PERFIL_POR_DEFECTO` (que en 0.2.0 trae `cruceOptimo: true`:
+Húngaro y pase N:M encendidos), tras una corrida de calentamiento, y reporta la
+mediana de 5 corridas (3 para 100.000).
 
 ```bash
-node scripts/medir.ts                    # 60 ventas por día (comercio mediano)
-node scripts/medir.ts --por-dia=10       # comercio pequeño
+npm run medir                            # 60 ventas por día (comercio mediano)
+npm run medir -- --por-dia=10            # comercio pequeño
+CARGA_DATABASE_URL=postgres://... npm run carga   # 10⁶ movimientos + cola con 2 workers
 ```
 
-Equipo: Apple M5, 16 GB, macOS, Node v24.15.0.
+Equipo: Apple M5, 16 GB, macOS, Node v24.15.0. Corridas del 17 de octubre de
+2026 sobre la versión 0.2.0.
+
+### 8.1 `conciliar` (versión 0.2.0)
 
 **60 ventas por día:**
 
 | Ventas | Abonos | Mediana | Mínimo | Automáticas | Sugeridas | Banco conciliado | Pases | Aristas del grafo |
 |---:|---:|---:|---:|---:|---:|---:|---|---:|
-| 10.000 | 7.587 | 85 ms | 72 ms | 3.677 | 2.612 | 82,9 % | exacta 3.645 · tolerancia 2.631 · agrupada 13 · omitida 1.295 | 10.643 |
-| 100.000 | 76.065 | 2.257 ms | 2.226 ms | 36.324 | 26.371 | 82,4 % | exacta 36.256 · tolerancia 26.335 · agrupada 104 · omitida 13.334 | 105.818 |
+| 10.000 | 7.587 | 91 ms | 87 ms | 3.675 | 2.690 | 83,9 % | exacta 3.645 · tolerancia 2.707 · agrupada 13 · omitida 1.220 | 10.643 |
+| 100.000 | 76.065 | 2.128 ms | 2.077 ms | 36.319 | 26.974 | 83,2 % | exacta 36.256 · tolerancia 26.949 · agrupada 88 · omitida 12.739 | 105.818 |
 
 **10 ventas por día:**
 
 | Ventas | Abonos | Mediana | Mínimo | Automáticas | Sugeridas | Banco conciliado | Pases | Aristas del grafo |
 |---:|---:|---:|---:|---:|---:|---:|---|---:|
-| 10.000 | 7.587 | 129 ms | 116 ms | 3.653 | 3.411 | 93,1 % | exacta 3.645 · tolerancia 2.378 · agrupada 1.041 | 4.094 |
-| 100.000 | 76.065 | 2.605 ms | 2.589 ms | 36.273 | 34.578 | 93,1 % | exacta 36.256 · tolerancia 24.282 · agrupada 10.313 | 40.046 |
+| 10.000 | 7.587 | 179 ms | 149 ms | 3.647 | 3.559 | 95,5 % | exacta 3.645 · tolerancia 2.545 · agrupada 996 · N:M 20 (13 omitidas) | 4.094 |
+| 100.000 | 76.065 | 2.499 ms | 2.439 ms | 36.263 | 35.874 | 95,4 % | exacta 36.256 · tolerancia 25.681 · agrupada 9.964 · N:M 236 (153 omitidas) | 40.046 |
+
+**Comparación con el MVP (0.1.0, mismo equipo y datos):**
+
+| Escenario | 0.1.0 | 0.2.0 | Banco conciliado 0.1.0 → 0.2.0 |
+|---|---:|---:|---|
+| 100.000 ventas, 60 por día | 2.257 ms | 2.128 ms | 82,4 % → 83,2 % |
+| 100.000 ventas, 10 por día | 2.605 ms | 2.499 ms | 93,1 % → 95,4 % |
+| 10.000 ventas, 10 por día | 129 ms | 179 ms | 93,1 % → 95,5 % |
+
+### 8.2 Prueba de carga: 10⁶ movimientos y la cola
+
+**Núcleo** (`scripts/carga.ts`): 1.000.000 de movimientos (banco + ventas) en
+10 lotes de 100.000, cada lote un periodo independiente como un extracto
+mensual.
+
+| Lotes | Movimientos | Conciliar (total) | Por lote | Ritmo | Banco conciliado | Memoria máxima (RSS) |
+|---:|---:|---:|---:|---:|---:|---:|
+| 10 | 1.000.000 | 10.022 ms (10.752 ms con la generación) | 952 a 1.049 ms | 99.782 mov/s | 83,1 % | 638 MB |
+
+**Cola** (PostgreSQL 16 local, 2 procesos worker reales): 40 trabajos de unos
+2.000 movimientos encolados por HTTP con `POST /conciliaciones?asincrono=1`.
+
+| Medida | Valor |
+|---|---|
+| Encolar 40 trabajos (80.017 movimientos) | 204 ms (5 ms por POST, respuesta 202) |
+| Procesar los 40 (desde lanzar los workers) | 2.630 ms; 40 hechos, 0 fallidos |
+| Ritmo | 15,2 trabajos/s · 30.429 movimientos/s |
+| Por trabajo (leer + conciliar + guardar en una transacción) | promedio 36 ms, máximo 63 ms |
+| Workers que tomaron trabajo | 2 de 2 |
+| Latencia de `GET /salud` durante la carga (50 sondeos) | p50 1,0 ms · p95 1,3 ms · máximo 3,3 ms |
 
 Lo que muestran los números:
 
-- **100.000 ventas se concilian en unos 2 a 3 segundos** en un portátil. Es
-  suficiente para el uso real (un comercio mediano tiene entre 1.000 y 20.000
-  ventas al mes), pero el crecimiento **no es O(n log n)**: 10 veces más datos
-  tardan entre 20 y 27 veces más.
-- **La causa está medida, no supuesta.** Un perfil de CPU
-  (`node --cpu-prof`) con 100.000 ventas muestra que la mayor parte del tiempo
-  se va en `ArbolAVL.buscarRango` y en el bucle del pase 2 que descarta
-  candidatas por fecha. El AVL indexa **solo por monto**: un rango del 5 %
-  sobre montos repartidos en todo el año devuelve k ventas que crecen con m, y
-  la mayoría se descarta luego por estar fuera de la ventana de días. El
-  costo real del pase 2 es O(n·k) con k proporcional a m.
-  Corrección propuesta (fase 13): particionar por fecha (un AVL por día, o
-  una clave compuesta día+monto) para que k dependa de la densidad diaria y no
-  del total.
-- **El pase agrupado depende de la densidad.** Con 60 ventas por día, una
-  ventana de 6 días tiene unas 360 candidatas, más que el tope de 40. Así que
-  casi todos los abonos agrupados se omiten y quedan para revisión manual (se
-  informan en `pases`; nunca se pierden). Con 10 ventas por día el pase
-  encuentra el 93 % de los grupos. Para comercios grandes hace falta acotar
-  las candidatas también por referencia de lote o usar una ventana más corta
-  en el perfil.
+- **10⁶ movimientos se concilian en unos 10 segundos** por lotes, con memoria
+  acotada (638 MB). El criterio de la fase 13, «10⁶ movimientos conciliados sin
+  bloquear la API», se cumple: mientras los workers procesan, `/salud`
+  responde en 1 ms de mediana, porque la API solo inserta en la cola.
+- **El cruce óptimo no encareció el caso grande.** A 100.000 ventas 0.2.0 es
+  incluso un poco más rápido que 0.1.0 (el resto del código también cambió) y
+  concilia más: el Húngaro y el pase N:M suben el banco conciliado de 93,1 % a
+  95,4 % con 10 ventas por día. Con 10.000 ventas y 10 por día el pase N:M sí
+  se nota (129 → 179 ms), porque hay muchas componentes pequeñas que explorar;
+  en valor absoluto sigue siendo una fracción de segundo.
+- **El crecimiento sigue sin ser O(n log n).** 10 veces más datos tardan unas
+  14 a 23 veces más. La causa ya medida en el MVP sigue ahí: el AVL del pase
+  2 indexa **solo por monto**, así que un rango del 5 % devuelve k ventas que
+  crecen con m y la mayoría se descarta por fecha. Procesar por periodos (como
+  hace `carga.ts`) acota m y es la forma práctica de escalar hoy; el índice
+  día+monto queda pendiente (sección 10).
+- **El pase agrupado depende de la densidad.** Con 60 ventas por día una
+  ventana de 6 días tiene unas 360 candidatas, más que el tope de 40, y casi
+  todos los abonos agrupados quedan para revisión manual (se informan en
+  `pases` y en `motivos`). Con 10 por día el pase encuentra casi todos.
 - El pase 1 resuelve casi la mitad de los abonos con un `Map`, en tiempo
   lineal. Por eso conviene ir de barato a caro.
 
-## 8. Pruebas
+## 9. Pruebas
 
 ```bash
-npm test                                             # 108 pruebas (las de PostgreSQL se saltan)
-DATABASE_URL_PRUEBA=postgres://... npm test          # incluye las de la API con base real
+npm test                                             # 246 pruebas (las de PostgreSQL se saltan)
+DATABASE_URL_PRUEBA=postgres://... npm test          # 274: incluye las de la API con base real
 ```
 
 | Archivo | Qué cubre |
 |---|---|
 | `packages/core/test/estructuras.test.ts` | Las 6 estructuras: vacía, un elemento, muchos elementos y comparación contra fuerza bruta |
 | `packages/core/test/plantillas.test.ts` | Validador, parser CSV (comillas, saltos dentro de comillas, BOM, CRLF), ancho fijo, detección |
-| `packages/core/test/cruce.test.ts` | Perfiles, cada pase, tolerancia asimétrica, ventana de días, prefijo con Trie, conflicto donde el greedy ingenuo falla, tope de 40 candidatos, explicaciones, determinismo, invariantes con 1.000 movimientos |
+| `packages/core/test/cruce.test.ts` | Perfiles, cada pase, tolerancia asimétrica, ventana de días, prefijo con Trie, conflicto donde el greedy ingenuo falla, tope de 40 candidatos, explicaciones, determinismo, invariantes con 1.000 movimientos, `cruceOptimo: false` contra el comportamiento de 0.1.0 |
+| `packages/core/test/hungaro.test.ts` | Húngaro contra fuerza bruta, «nunca peor que el greedy», clusters N:M (y `maxGrupo` 1 sin grupos), motivos |
+| `packages/core/test/reglas.test.ts` | Reglas AND/OR, prioridades, GMF, exigir referencia, tolerancia por regla, tarifas con vigencia, municipio y medio de pago, Bre-B, demo idéntica al MVP |
+| `packages/core/test/regexSegura.test.ts` | Regex rechazadas (anidadas, alternancias, referencias), recorte y presupuesto de tiempo |
+| `packages/core/test/formatos.test.ts` | MT940, camt.053, lectores registrables, `plantillaVersion`, columna opcional Bre-B, parser XML (misma política que DIAN) |
+| `packages/core/test/anonimizar.test.ts` | Cada muestra conserva líneas, longitudes y columnas y se lee igual; reemplazos estables; Excel |
 | `packages/core/test/escenario.test.ts` | Prueba de aceptación: las muestras de `ESCENARIO.md` dan exactamente lo esperado |
 | `packages/core/test/sesion.test.ts` | Confirmar, rechazar, manual, deshacer y rehacer, bitácora |
 | `packages/plantillas/muestras.test.ts` | Las muestras son coherentes (saldos, totales de control Asobancaria, encabezados) |
+| `packages/excel/test/excel.test.ts` | `.xlsx` → CSV, hojas, números sin exponente, misma lectura que el CSV |
+| `packages/dian/test/dian.test.ts` | Parser XML con namespaces y errores con línea/columna, facturas, notas crédito, `AttachedDocument`, CUFE, retenciones, duplicados, cruce pagos B2B ↔ facturas |
 | `apps/api/test/api.test.ts` | Rutas, validación, CORS, límites, y con PostgreSQL: guardado, transacciones, `FOR UPDATE`, rollback |
+| `apps/api/test/seguridad.test.ts` | JWT (vencido, alterado, `alg: none`), roles, scrypt, límite de velocidad, cursores |
+| `apps/api/test/multiempresa.test.ts` | Migraciones (también desde una base del MVP), aislamiento entre empresas, roles, versiones de plantillas y perfiles, paginación, métricas |
+| `apps/api/test/cola.test.ts` | 202 y `GET /trabajos/:id`, `SKIP LOCKED` con dos workers, rollback y reintentos, worker caído, proceso real con `SIGTERM` |
 
-El CI (`.github/workflows/ci.yml`) corre todo con un servicio PostgreSQL 16 y
-además compila el panel.
+El CI (`.github/workflows/ci.yml`) revisa los tipos, corre todo con un
+servicio PostgreSQL 16 y compila la librería (`build:lib`) y el panel.
 
-## 9. Limitaciones y próximas fases
+## 10. Limitaciones y estado de las fases
 
-Limitaciones conocidas de esta versión:
+Limitaciones conocidas de la versión 0.2.0:
 
-- **Pase 2 en O(n·k)** con k proporcional a m (ver sección 7).
+- **Pase 2 en O(n·k)** con k proporcional a m (sección 8). Hoy se escala por
+  periodos; falta el índice día+monto.
 - **Pase agrupado** inútil con más de 40 ventas en la ventana. Esos abonos
-  quedan para revisión manual.
-- La asignación por componente es **greedy**, no óptima.
-- La API **no recibe emparejamientos manuales** ni plantillas propias: solo
-  conoce las plantillas incluidas, y el panel desactiva «Guardar en el
-  servidor» cuando se usa una plantilla creada en el navegador.
+  quedan para revisión manual, con su motivo.
+- El Húngaro solo se usa en componentes de hasta 60 nodos; las más grandes
+  siguen con el greedy.
+- La API **no recibe emparejamientos manuales** hechos en el panel.
 - **Asobancaria 2001**: el lector va línea por línea y espera la fecha repetida
   en la zona reservada del detalle (ver la descripción de la plantilla).
-- Sin autenticación ni multiempresa. Las plantillas y perfiles propios viven en
-  el `localStorage` del navegador.
-- Solo formatos de texto. No lee Excel, MT940 ni camt.053.
 - Las plantillas se construyeron con documentación pública y datos
-  sintéticos; falta validarlas con archivos reales anonimizados.
+  sintéticos; **falta validarlas con archivos reales** anonimizados (fase 8).
+- El límite de velocidad del ingreso vive en la memoria de cada proceso: con
+  varias instancias de la API cada una cuenta por su lado.
+- Los workers de Render no tienen plan gratuito (ver
+  [DESPLIEGUE.md](DESPLIEGUE.md)).
 
-Próximas fases (de [PLAN.md](PLAN.md)), una rama por fase mezclada con
-`--no-ff`:
+Estado de las fases de escalado (detalle en [PLAN.md](PLAN.md)):
 
-| Semana | Fase | Contenido |
+| Fase | Estado | Qué falta |
 |---|---|---|
-| 1 | 8. Validación con usuarios | Entrevistas; 3 a 5 archivos reales anonimizados convertidos en plantillas y vectores de prueba |
-| 2 | 9. Más formatos | Excel (SheetJS en un adaptador), MT940 y camt.053 como lectores registrados |
-| 3 | 10. Reglas avanzadas | Reglas AND/OR ordenadas, tarifas de retención con vigencia y municipio, GMF 4×1000 |
-| 4 | 11. Cruce N:M | Asignación óptima (método húngaro) por componente; reporte «por qué no cruzó» |
-| 5 | 12. Multiempresa | JWT, empresas, roles, versiones de plantillas y perfiles por empresa |
-| 6 | 13. Escala | Cola persistente en PostgreSQL, worker aparte, índice del pase 2 por fecha+monto (sección 7), pruebas con 10⁶ movimientos |
-| 7 | 14. Librería pública | Compilar a JS + tipos, publicar `0.x` en npm, guía para aportar plantillas |
-| 8 | 15. Colombia | Referencia de Pago de Bre-B, cruce pago ↔ factura electrónica DIAN (CUFE), exportes contables |
+| 8. Validación con usuarios | Parcial | Herramienta (`scripts/anonimizar.ts`) y guía ([GUIA_VALIDACION.md](GUIA_VALIDACION.md)) listas; faltan las entrevistas y los archivos reales |
+| 9. Más formatos | Hecha | — |
+| 10. Reglas avanzadas | Hecha | — |
+| 11. Cruce N:M y explicabilidad | Hecha | — |
+| 12. Multiempresa | Hecha | — |
+| 13. Escala y estabilidad | Hecha | Índice día+monto del pase 2 (mejora, no criterio de la fase) |
+| 14. Librería pública | Lista para publicar | `npm publish` con la cuenta del autor |
+| 15. Colombia | Parcial | Bre-B y facturas DIAN hechos; faltan los exportes para contabilidad |

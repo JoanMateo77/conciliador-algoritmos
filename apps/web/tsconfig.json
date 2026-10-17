@@ -14,7 +14,9 @@
     "types": ["vite/client", "node"],
     "paths": {
       "@conciliador/core": ["../../packages/core/src/index.ts"],
-      "@conciliador/plantillas": ["../../packages/plantillas/index.ts"]
+      "@conciliador/plantillas": ["../../packages/plantillas/index.ts"],
+      "@conciliador/excel": ["../../packages/excel/src/index.ts"],
+      "@conciliador/dian": ["../../packages/dian/src/index.ts"]
     }
   },
   "include": ["src", "vite.config.ts"]

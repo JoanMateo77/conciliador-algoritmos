@@ -5,6 +5,10 @@ import { decodificar, descargarJSON, leerBytes } from '../archivos.ts';
 import type { Avisar } from '../tipos.ts';
 import { AsistentePlantilla } from './AsistentePlantilla.tsx';
 
+const NOMBRE_TIPO_PLANTILLA: Record<string, string> = {
+  delimitado: 'delimitado (CSV o Excel)', anchoFijo: 'ancho fijo', mt940: 'MT940 (SWIFT)', camt053: 'camt.053 (ISO 20022, XML)',
+};
+
 interface Props {
   plantillas: Plantilla[];
   propias: Plantilla[];
@@ -63,7 +67,7 @@ export function Plantillas({ plantillas, propias, idsIncluidas, onGuardarPropias
               <span className={`insignia ${esPropia(p.id) ? 'insignia--confirmada' : 'insignia--neutra'}`}>{esPropia(p.id) ? 'Creada por ti' : 'Incluida'}</span>
             </div>
             <p className="suave">
-              {p.lado === 'banco' ? 'Banco' : 'Ventas'} · {p.tipo === 'anchoFijo' ? 'ancho fijo' : 'delimitado'} · fechas {p.formatoFecha} · versión {p.version}
+              {p.lado === 'banco' ? 'Banco' : 'Ventas'} · {NOMBRE_TIPO_PLANTILLA[p.tipo] ?? p.tipo}{p.formatoFecha ? ` · fechas ${p.formatoFecha}` : ''} · versión {p.version}
             </p>
             {p.descripcion && <p>{p.descripcion}</p>}
             {p.fuente && <p className="ayuda">Fuente: {p.fuente}</p>}

@@ -1,0 +1,22 @@
+# Blueprint de Render para la API. Se construye desde la raíz porque el
+# monorepo usa npm workspaces (la API importa @conciliador/core y plantillas).
+services:
+  - type: web
+    name: conciliador-api
+    runtime: node
+    plan: free           # sin esto Render usa el plan pago por defecto
+    rootDir: ""
+    # npm ci respeta package-lock.json; con NODE_ENV=production omite devDependencies
+    # (la API no las necesita: Node 24 ejecuta el TypeScript directamente).
+    buildCommand: npm ci
+    startCommand: npm run start:api
+    healthCheckPath: /salud
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ORIGEN
+        sync: false

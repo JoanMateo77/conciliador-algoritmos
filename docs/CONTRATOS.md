@@ -258,7 +258,8 @@ opcional: si existe, aparece "Guardar en el servidor".
 # Fases 9 a 15: contratos de ampliación
 
 Regla de compatibilidad: todo lo nuevo es **opcional y retrocompatible**. Un
-perfil, una plantilla o una llamada del MVP debe seguir funcionando igual.
+perfil, una plantilla o una llamada del MVP debe seguir funcionando igual
+(en el cruce, con `cruceOptimo: false`; ver la sección 11).
 Las 115 pruebas existentes no se borran ni se debilitan.
 
 ## Dueños de carpetas (para trabajar en paralelo sin choques)
@@ -287,8 +288,19 @@ interface LectorFormato {
 }
 registrarLector(lector: LectorFormato): void       // en plantillas/index.ts
 // leerArchivo usa el lector según plantilla.tipo; 'delimitado' y 'anchoFijo' siguen igual.
-// Todo movimiento leído lleva plantillaVersion = plantilla.version.
+// Todo movimiento leído lleva plantillaVersion = plantilla.version. Si el mapeo de una
+// plantilla incluida cambia, sube su version (banco-csv-generico está en la 2).
 // Plantilla gana `hoja?: string` (Excel) sin efecto en el núcleo.
+```
+
+Parser XML (`core/src/plantillas/xml.ts`, único en el proyecto; lo usan camt.053 y
+`@conciliador/dian`, que lo reexporta con nombres cortos):
+
+```ts
+analizarXML(texto: string): ElementoXML   // lanza ErrorXML (ErrorDeDato) con linea y columna
+// ElementoXML { nombre, prefijo, local, uri, atributos: AtributoXML[], hijos, texto, linea, columna }
+// Namespaces por URI. Rechaza DOCTYPE, entidades desconocidas y '&' sin escapar.
+hijoXML, hijosXML, rutaXML, descendientesXML (por URI + nombre local), atributoXML, textoXML
 ```
 
 `@conciliador/excel`:
@@ -331,6 +343,11 @@ interface Tarifa {
   medioPago?: string; municipio?: string;
 }
 // Perfil gana (opcionales): reglas?: Regla[]; tarifas?: Tarifa[]; municipio?: string
+// Regex de usuario (op 'regex' y regex de plantillas): revisarRegex/regexSegura/crearProbador
+// en core/src/regexSegura.ts. Máx. 200 caracteres, sin cuantificadores anidados ni (a|b)+,
+// sin referencias hacia atrás, costo acotado (≈ dos '*'); se prueban sobre 256 caracteres
+// con presupuesto de tiempo (ErrorRegexCostosa). validarReglas: ≤ 200 reglas, ≤ 20 condiciones.
+// API: sin token (demo) una regla con op 'regex' responde 403.
 // conciliar aplica primero reglas de clasificación (los clasificados salen del cruce y van a
 // ResultadoConciliacion.clasificados), luego los pases. Las tarifas vigentes a la fecha del abono
 // explican faltantes; 'retenciones' del MVP sigue funcionando.
@@ -347,7 +364,19 @@ interface Tarifa {
 //   clasificados: { id: string; lado: 'banco' | 'ventas'; categoria: string; reglaId: string }[]
 //   motivos: Record<string, string>   // id de movimiento sin cruzar -> por qué no cruzó, en español
 // Coincidencia.tipo admite además 'agrupadaNM'.
+// Pase 3 con cruceOptimo: si la referencia de un abono nombra una venta libre en su ventana,
+// el grupo tiene que incluirla; si esa venta no está en la ventana, el abono no se agrupa
+// (y su motivo lo dice).
+// maxGrupo limita las ventas por grupo en el pase 3 y en el N:M. Con maxGrupo < 2 no corre
+// ninguno de los dos: en 0.1.0 maxGrupo 1 significaba "no agrupar" y lo sigue significando
+// (sin esto, el N:M armaría clusters de 2+ abonos contra 1 venta).
 ```
+
+Cambio de comportamiento (declarado en `CHANGELOG.md`, 0.2.0 → "Cambiado"):
+con `cruceOptimo` en su valor por defecto (`true`) un perfil del MVP puede
+dar un resultado distinto (Húngaro, N:M y referencia requerida en el pase 3).
+`cruceOptimo: false` reproduce exactamente el resultado del MVP; ese es el
+alcance de la regla de compatibilidad para el cruce.
 
 ## 12. Multiempresa (API)
 
@@ -396,7 +425,7 @@ público de demostración (empresa `demo`).
 
 ```ts
 leerFacturaUBL(xml: string): { movimiento: Movimiento | null; errores: string[] }
-// Parser XML propio y pequeño (sin dependencias). Extrae número, CUFE (cbc:UUID),
+// Parser XML propio, sin dependencias: el de core (plantillas/xml.ts), compartido con camt.053. Extrae número, CUFE (cbc:UUID),
 // NIT emisor/adquirente, fecha de emisión y vencimiento, subtotal, IVA, retenciones
 // (WithholdingTaxTotal) y total a pagar (PayableAmount). Movimiento lado 'ventas',
 // montoCentavos = total a pagar, referencia = número de factura, documento = DocumentoFiscal.

@@ -17,11 +17,14 @@
     "dev:web": "npm run dev -w apps/web",
     "build:web": "npm run build -w apps/web",
     "start:api": "npm start -w apps/api",
-    "typecheck": "tsc -p tsconfig.json && tsc -p apps/web/tsconfig.json"
+    "typecheck": "tsc -p tsconfig.json && tsc -p apps/web/tsconfig.json",
+    "build:vercel": "node scripts/construir-vercel.ts",
+    "migrar": "node apps/api/src/migrar.ts"
   },
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^22.10.5",
+    "esbuild": "^0.25.12",
     "typescript": "^5.8.3"
   }
 }

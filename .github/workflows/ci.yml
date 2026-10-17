@@ -44,5 +44,11 @@ jobs:
       - name: Pruebas (núcleo, plantillas y API con PostgreSQL)
         run: npm test
 
+      - name: Revisar tipos
+        run: npm run typecheck
+
       - name: Compilar el panel
         run: npm run build:web
+
+      - name: Armar la salida de Vercel
+        run: npm run build:vercel

@@ -1,0 +1,19 @@
+{
+  "id": "mt940-generico",
+  "nombre": "Extracto MT940 (SWIFT, genérico)",
+  "version": 1,
+  "lado": "banco",
+  "descripcion": "Extracto en formato SWIFT MT940 que entregan muchos bancos por banca empresarial o host to host. Cada movimiento es un campo :61: (fecha valor AAMMDD, fecha de asiento MMDD opcional, marca C/D/RC/RD, monto con coma decimal, tipo de transacción, referencia del cliente // referencia del banco) seguido de su :86: con la descripción, que puede ocupar varias líneas. Se toman solo los abonos; la referencia sale del :61: y, si viene NONREF, del :86:. El lector verifica que :60F: + movimientos = :62F:.",
+  "fuente": "SWIFT MT940 Customer Statement Message (Standards MT, documentación pública) y guías de implementación MT940 publicadas por bancos. No corresponde a un banco en particular.",
+  "tipo": "mt940",
+  "codificacion": "utf-8",
+  "separadorDecimal": ",",
+  "formatoFecha": "yyyy-MM-dd",
+  "soloEntradas": true,
+  "columnas": {
+    "fecha": "FECHA",
+    "monto": "MONTO",
+    "referencia": "REFERENCIA",
+    "descripcion": "DESCRIPCION"
+  }
+}

@@ -4,3 +4,4 @@ export * from './plantillas/index.ts';
 export * from './ingesta.ts';
 export * from './cruce/index.ts';
 export * from './sesion.ts';
+export * from './regexSegura.ts';

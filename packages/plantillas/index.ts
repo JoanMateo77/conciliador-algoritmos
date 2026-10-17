@@ -3,6 +3,8 @@
 import type { Plantilla } from '../core/src/plantillas/tipos.ts';
 import asobancaria2001 from './formatos/asobancaria-2001.json' with { type: 'json' };
 import bancoCsvGenerico from './formatos/banco-csv-generico.json' with { type: 'json' };
+import camt053Generico from './formatos/camt053-generico.json' with { type: 'json' };
+import mt940Generico from './formatos/mt940-generico.json' with { type: 'json' };
 import mercadopagoLiquidacion from './formatos/mercadopago-liquidacion.json' with { type: 'json' };
 import ventasCsvGenerico from './formatos/ventas-csv-generico.json' with { type: 'json' };
 import wompiTransacciones from './formatos/wompi-transacciones.json' with { type: 'json' };
@@ -15,6 +17,8 @@ export const PLANTILLAS: Plantilla[] = [
   wompiTransacciones,
   mercadopagoLiquidacion,
   ventasCsvGenerico,
+  mt940Generico,
+  camt053Generico,
 ] as Plantilla[];
 
 export { MUESTRAS } from './muestras/index.ts';

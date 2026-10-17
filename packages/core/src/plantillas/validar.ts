@@ -1,14 +1,16 @@
 // Validador a mano (sin librerías): las plantillas llegan como JSON de usuarios o del
 // asistente del panel, así que cada error dice la ruta del campo para poder corregirlo.
+import { tiposRegistrados } from './lectores.ts';
+import { revisarRegex } from '../regexSegura.ts';
 import { CAMPOS_DESTINO } from './tipos.ts';
 import type { Plantilla, ResultadoValidacion } from './tipos.ts';
 
 const CLAVES_PLANTILLA = new Set([
   'id', 'nombre', 'version', 'lado', 'descripcion', 'fuente', 'tipo', 'codificacion', 'separador',
   'separadorDecimal', 'formatoFecha', 'filasEncabezado', 'registroDetalle', 'omitirSi',
-  'soloEntradas', 'detectar', 'columnas',
+  'soloEntradas', 'detectar', 'columnas', 'hoja',
 ]);
-const CLAVES_MAPEO = new Set(['de', 'inicio', 'longitud', 'unir', 'regex', 'decimalesImplicitos', 'signo', 'fijo']);
+const CLAVES_MAPEO = new Set(['de', 'inicio', 'longitud', 'unir', 'regex', 'decimalesImplicitos', 'signo', 'fijo', 'opcional']);
 const CAMPOS = new Set<string>(CAMPOS_DESTINO);
 const SEPARADORES = new Set([',', ';', '\t', '|']);
 
@@ -18,9 +20,6 @@ const esObjeto = (x: unknown): x is Objeto => typeof x === 'object' && x !== nul
 const esTexto = (x: unknown): x is string => typeof x === 'string' && x.trim() !== '';
 const esEntero = (x: unknown, min: number): x is number => Number.isInteger(x) && (x as number) >= min;
 
-function regexValida(x: string): boolean {
-  try { new RegExp(x); return true; } catch { return false; }
-}
 
 export function validarPlantilla(p: unknown): ResultadoValidacion {
   const errores: string[] = [];
@@ -42,9 +41,15 @@ export function validarPlantilla(p: unknown): ResultadoValidacion {
   if (p.descripcion !== undefined && typeof p.descripcion !== 'string') error('descripcion', 'debe ser texto');
   if (p.fuente !== undefined && typeof p.fuente !== 'string') error('fuente', 'debe ser texto');
 
+  // Además de los declarativos, vale cualquier tipo con lector registrado (mt940, camt053...).
+  const tipos = tiposRegistrados();
   const tipo = p.tipo;
   if (tipo === undefined) error('tipo', 'falta');
-  else if (tipo !== 'delimitado' && tipo !== 'anchoFijo') error('tipo', 'debe ser "delimitado" o "anchoFijo"');
+  else if (typeof tipo !== 'string' || !tipos.includes(tipo)) error('tipo', `debe ser uno de: ${tipos.map((t) => `"${t}"`).join(', ')}`);
+  // Los lectores propios entregan campos con nombre: se mapean como columnas de un delimitado.
+  const conLector = typeof tipo === 'string' && tipo !== 'delimitado' && tipo !== 'anchoFijo' && tipos.includes(tipo);
+  const modoMapeo = conLector ? 'delimitado' : tipo;
+  if (p.hoja !== undefined && !esTexto(p.hoja)) error('hoja', 'debe ser un texto no vacío');
 
   if (p.codificacion !== undefined && p.codificacion !== 'utf-8' && p.codificacion !== 'latin1') {
     error('codificacion', 'debe ser "utf-8" o "latin1"');
@@ -52,6 +57,7 @@ export function validarPlantilla(p: unknown): ResultadoValidacion {
   if (p.separador !== undefined) {
     if (typeof p.separador !== 'string' || !SEPARADORES.has(p.separador)) error('separador', 'debe ser uno de , ; | o tabulador');
     if (tipo === 'anchoFijo') error('separador', 'no aplica a plantillas de ancho fijo');
+    if (conLector) error('separador', `no aplica a plantillas de tipo "${tipo}"`);
   }
   if (p.separadorDecimal !== undefined && p.separadorDecimal !== ',' && p.separadorDecimal !== '.') {
     error('separadorDecimal', 'debe ser "," o "."');
@@ -66,11 +72,12 @@ export function validarPlantilla(p: unknown): ResultadoValidacion {
   if (p.filasEncabezado !== undefined) {
     if (!esEntero(p.filasEncabezado, 0)) error('filasEncabezado', 'debe ser un entero mayor o igual a 0');
     if (tipo === 'anchoFijo') error('filasEncabezado', 'no aplica a plantillas de ancho fijo');
+    if (conLector) error('filasEncabezado', `no aplica a plantillas de tipo "${tipo}"`);
   }
 
   if (p.registroDetalle !== undefined) {
     const r = p.registroDetalle;
-    if (tipo === 'delimitado') error('registroDetalle', 'solo aplica a plantillas de ancho fijo');
+    if (tipo !== undefined && tipo !== 'anchoFijo') error('registroDetalle', 'solo aplica a plantillas de ancho fijo');
     if (!esObjeto(r)) error('registroDetalle', 'debe ser un objeto { inicio, longitud, valor }');
     else {
       if (!esEntero(r.inicio, 1)) error('registroDetalle.inicio', r.inicio === undefined ? 'falta' : 'debe ser un entero mayor o igual a 1');
@@ -93,7 +100,7 @@ export function validarPlantilla(p: unknown): ResultadoValidacion {
         error(`${ruta}.campo`, `en ancho fijo debe ser un campo de columnas ("${o.campo}" no está)`);
       }
       if (typeof o.regex !== 'string') error(`${ruta}.regex`, o.regex === undefined ? 'falta' : 'debe ser texto');
-      else if (!regexValida(o.regex)) error(`${ruta}.regex`, `expresión regular inválida: ${o.regex}`);
+      else { const problema = revisarRegex(o.regex); if (problema) error(`${ruta}.regex`, `${problema}: ${o.regex.slice(0, 60)}`); }
     });
   }
 
@@ -119,7 +126,7 @@ export function validarPlantilla(p: unknown): ResultadoValidacion {
   else {
     for (const [campo, mapeo] of Object.entries(columnas)) {
       if (!CAMPOS.has(campo)) error(`columnas.${campo}`, `campo desconocido; válidos: ${CAMPOS_DESTINO.join(', ')}`);
-      else validarMapeo(`columnas.${campo}`, mapeo, tipo, error);
+      else validarMapeo(`columnas.${campo}`, mapeo, modoMapeo, error);
     }
     if (columnas.fecha === undefined) error('columnas.fecha', 'falta');
     if (columnas.monto === undefined) error('columnas.monto', 'falta');
@@ -153,12 +160,16 @@ function validarMapeo(ruta: string, m: unknown, tipo: unknown, error: (ruta: str
   if (m.fijo !== undefined && typeof m.fijo !== 'string') error(`${ruta}.fijo`, 'debe ser texto');
   if (m.regex !== undefined) {
     if (typeof m.regex !== 'string') error(`${ruta}.regex`, 'debe ser texto');
-    else if (!regexValida(m.regex)) error(`${ruta}.regex`, `expresión regular inválida: ${m.regex}`);
+    else { const problema = revisarRegex(m.regex); if (problema) error(`${ruta}.regex`, `${problema}: ${m.regex.slice(0, 60)}`); }
   }
   if (m.decimalesImplicitos !== undefined && (!esEntero(m.decimalesImplicitos, 0) || m.decimalesImplicitos > 6)) {
     error(`${ruta}.decimalesImplicitos`, 'debe ser un entero entre 0 y 6');
   }
   if (m.signo !== undefined && m.signo !== 'negar' && m.signo !== 'abs') error(`${ruta}.signo`, 'debe ser "negar" o "abs"');
+  if (m.opcional !== undefined) {
+    if (typeof m.opcional !== 'boolean') error(`${ruta}.opcional`, 'debe ser true o false');
+    if (tipo === 'anchoFijo') error(`${ruta}.opcional`, 'no aplica a ancho fijo');
+  }
 
   // Cada mapeo necesita de dónde sacar el valor.
   if (m.fijo === undefined) {

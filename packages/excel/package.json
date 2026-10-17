@@ -1,12 +1,44 @@
 {
   "name": "@conciliador/excel",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Adaptador de Excel (.xlsx/.xls) a filas para el conciliador. Mantiene el núcleo sin dependencias.",
+  "keywords": [
+    "conciliacion",
+    "colombia",
+    "pagos",
+    "asobancaria",
+    "wompi",
+    "bre-b",
+    "dian",
+    "excel",
+    "xlsx"
+  ],
+  "license": "MIT",
+  "author": "Joan Mateo Cardona Lorza",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/POR-COMPLETAR/conciliador.git",
+    "directory": "packages/excel"
+  },
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "conciliador-src": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
   },
-  "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
   "dependencies": {
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   }

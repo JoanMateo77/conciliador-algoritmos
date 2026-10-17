@@ -132,3 +132,23 @@ quedan **6 ventas** con `montoCentavos` = TRANSACTION_AMOUNT (bruto) y
 `desglose` con bruto, comisión (|FEE_AMOUNT|) y retenciones (|TAXES_AMOUNT|).
 Ejemplo, primera fila: monto 15.000.000, comision 682.465, retenciones
 225.000; bruto - comisión - retenciones = 14.092.535 = SETTLEMENT_NET_AMOUNT.
+
+## El mismo extracto en otros formatos (fase 9)
+
+- `extracto-banco-mt940.txt` (mt940-generico) y `extracto-banco-camt053.xml`
+  (camt053-generico) traen **los mismos 16 movimientos** que
+  `extracto-banco.csv` (14 abonos, el débito GMF y la consignación), con saldo
+  inicial 2.350.000,00 y final 5.319.784,83 (`:60F:`/`:62F:` y `OPBD`/`CLBD`
+  cuadran). Leídos con su plantilla dan los mismos 14 abonos (fecha, monto,
+  referencia y descripción) y el mismo cruce del par 1 contra
+  `ventas-wompi.csv`; solo cambian los ids (`<plantilla>:<línea>`).
+  En MT940 la consignación y el GMF vienen como `NONREF` (referencia vacía)
+  y el `:86:` de la liquidación del 08/10 ocupa dos líneas
+  (`LIQUIDACION WOMPI;` + `LOTE 3 TRX`). En camt.053 ese texto viene en dos
+  `<Ustrd>` y la referencia vacía es `NOTPROVIDED`.
+- `extracto-banco-breb.csv` (banco-csv-generico) agrega la columna opcional
+  `REFERENCIA PAGO`. Tiene 4 abonos: uno PSE como en el extracto principal y
+  tres transferencias Bre-B sin referencia bancaria pero con `REFERENCIA
+  PAGO` = la referencia del pedido (PED-2026-117350, PED-2026-121904 y
+  PED-2026-133018, mismos montos que en `ventas-wompi.csv`), que llega a
+  `referenciaPago`. Saldo final 3.156.752,00.

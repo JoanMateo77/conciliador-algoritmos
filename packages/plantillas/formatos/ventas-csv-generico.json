@@ -1,0 +1,25 @@
+{
+  "id": "ventas-csv-generico",
+  "nombre": "Ventas CSV (ERP genérico)",
+  "version": 1,
+  "lado": "ventas",
+  "descripcion": "Exportación simple de ventas o facturas de un ERP: separador ',', fecha yyyy-MM-dd y total con punto decimal. El campo CLIENTE puede venir entre comillas si contiene comas.",
+  "fuente": "Formato propio del proyecto: columnas mínimas que cualquier ERP o software contable puede exportar.",
+  "tipo": "delimitado",
+  "codificacion": "utf-8",
+  "separador": ",",
+  "separadorDecimal": ".",
+  "formatoFecha": "yyyy-MM-dd",
+  "filasEncabezado": 1,
+  "soloEntradas": true,
+  "detectar": {
+    "encabezados": ["ID_VENTA", "FECHA", "CLIENTE", "REFERENCIA", "TOTAL"]
+  },
+  "columnas": {
+    "id": "ID_VENTA",
+    "fecha": "FECHA",
+    "descripcion": "CLIENTE",
+    "referencia": "REFERENCIA",
+    "monto": "TOTAL"
+  }
+}

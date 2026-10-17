@@ -1,0 +1,31 @@
+{
+  "id": "mercadopago-liquidacion",
+  "nombre": "Mercado Pago: reporte de liquidaciones (dinero en cuenta)",
+  "version": 1,
+  "lado": "ventas",
+  "descripcion": "Reporte de liquidaciones de Mercado Pago Colombia. Se usa como lado 'ventas': cada fila SETTLEMENT es una venta cobrada por la pasarela. El monto es TRANSACTION_AMOUNT (bruto, lo que pagó el cliente) y no SETTLEMENT_NET_AMOUNT, para cruzar contra el banco con las mismas reglas que las demás ventas: el faltante lo explica el desglose (comisión FEE_AMOUNT y retenciones TAXES_AMOUNT, que el reporte trae en negativo). Se omiten devoluciones, contracargos y retiros (todo lo que no sea SETTLEMENT). La fecha se toma de los 10 primeros caracteres de TRANSACTION_DATE.",
+  "fuente": "Mercado Pago Developers: reporte de liquidaciones / dinero en cuenta (settlement report), glosario público de columnas.",
+  "tipo": "delimitado",
+  "codificacion": "utf-8",
+  "separador": ",",
+  "separadorDecimal": ".",
+  "formatoFecha": "yyyy-MM-dd",
+  "filasEncabezado": 1,
+  "omitirSi": [
+    { "campo": "TRANSACTION_TYPE", "regex": "^(?!SETTLEMENT$)" }
+  ],
+  "soloEntradas": true,
+  "detectar": {
+    "encabezados": ["SOURCE_ID", "EXTERNAL_REFERENCE", "TRANSACTION_DATE", "TRANSACTION_TYPE", "TRANSACTION_AMOUNT", "FEE_AMOUNT", "SETTLEMENT_NET_AMOUNT", "TAXES_AMOUNT"]
+  },
+  "columnas": {
+    "id": "SOURCE_ID",
+    "fecha": { "de": "TRANSACTION_DATE", "regex": "^(\\d{4}-\\d{2}-\\d{2})" },
+    "referencia": "EXTERNAL_REFERENCE",
+    "descripcion": "TRANSACTION_TYPE",
+    "monto": "TRANSACTION_AMOUNT",
+    "bruto": "TRANSACTION_AMOUNT",
+    "comision": { "de": "FEE_AMOUNT", "signo": "abs" },
+    "retenciones": { "de": "TAXES_AMOUNT", "signo": "abs" }
+  }
+}

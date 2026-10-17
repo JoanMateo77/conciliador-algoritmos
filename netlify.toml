@@ -1,0 +1,12 @@
+# Netlify construye desde la raíz porque el panel importa packages/ por alias.
+[build]
+  base = "."
+  command = "npm ci && npm run build:web"
+  publish = "apps/web/dist"
+
+[build.environment]
+  NODE_VERSION = "24"
+
+# VITE_API_URL (opcional) se define en el panel de Netlify: Site configuration >
+# Environment variables. Vite la incrusta al compilar, así que cambiarla exige
+# un nuevo despliegue. Sin ella el panel funciona igual, solo sin "Guardar en el servidor".

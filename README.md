@@ -1,315 +1,227 @@
-# Conciliador
+# Conciliador de pagos
 
-Librería modular en TypeScript que cruza los abonos del banco con las ventas de
-un comercio colombiano y explica cada diferencia, adaptable a cualquier banco o
-pasarela con plantillas JSON.
+Herramienta en TypeScript para conciliar el extracto bancario de un comercio
+colombiano contra su reporte de ventas. Cruza los abonos con las ventas, explica
+cada diferencia (comisiones, IVA, retenciones) y deja para revisión manual solo
+los casos dudosos.
 
-[![Licencia MIT](https://img.shields.io/badge/licencia-MIT-blue.svg)](LICENSE)
+Se compone de una librería sin dependencias, un panel web que procesa los
+archivos en el navegador y una API opcional con PostgreSQL para trabajo
+multiempresa.
 
-## El problema
+Proyecto final de Estructuras de Datos II, Universidad Autónoma de Occidente.
 
-En Colombia una venta de $520.000 pagada por PSE o tarjeta casi nunca llega
-completa ni el mismo día. La pasarela (Wompi, Mercado Pago…) descuenta su
-comisión y el IVA sobre la comisión. A veces aplica también ReteFuente, abona
-varias ventas en un solo depósito y deja una referencia truncada. Encima, cada
-banco exporta el extracto en su propio formato: CSV con `;`, montos con
-`1.234,56`, Excel, archivos de recaudo Asobancaria de ancho fijo en latin1,
-MT940 o camt.053 por banca empresarial.
+## Contexto
 
-El resultado es que alguien de contabilidad pasa horas cruzando a mano dos
-hojas de cálculo. El conciliador hace ese cruce y deja a la persona solo los
-casos dudosos, con una explicación en español de cada diferencia
-(«Faltan $24.198,20 (4,65 %) ≈ comisión 3,15 % + ReteFuente 1,5 %»).
+Una venta de $520.000 pagada por PSE o tarjeta rara vez llega al banco completa
+y el mismo día. La pasarela descuenta su comisión y el IVA de esa comisión,
+puede aplicar ReteFuente o ReteICA, agrupa varias ventas en un solo abono y a
+veces trunca la referencia. Además cada banco exporta en un formato distinto:
+CSV con `;`, montos como `1.234,56`, Excel, archivos de recaudo Asobancaria de
+ancho fijo, MT940 o camt.053.
 
-## Qué trae (versión 0.2.0)
+En la práctica alguien cruza dos hojas de cálculo a mano. Este proyecto
+automatiza ese cruce y, para lo que no puede resolver solo, dice por qué.
 
-| Área | Qué hay |
+## Funcionalidades
+
+- Lectura de CSV, TXT, Excel (`.xlsx`, `.xls`), Asobancaria 2001, MT940,
+  camt.053 y facturas electrónicas DIAN (UBL 2.1).
+- Detección automática del formato a partir de los encabezados del archivo.
+- Cruce exacto, con tolerancia, agrupado (varias ventas en un abono) y N:M.
+- Explicación de cada coincidencia y motivo de cada movimiento sin cruzar.
+- Perfiles por empresa: tolerancias, ventana de días, reglas de clasificación
+  y tarifas con vigencia y municipio.
+- Revisión manual: confirmar, rechazar, emparejar, deshacer y rehacer.
+- Asistente para crear la plantilla de un banco nuevo desde un archivo de
+  muestra, sin programar.
+- API con empresas, usuarios y roles, versiones de plantillas y perfiles, y
+  una cola de trabajos para conciliaciones grandes.
+
+## Arquitectura
+
+```
+                 ┌───────────────────────────────────────────────┐
+                 │ packages/core  (sin dependencias, sin E/S)    │
+ archivos ──►    │  plantillas ─► Movimiento ─► cruce ─► sesión  │
+                 └───────────────────────────────────────────────┘
+                     ▲               ▲                 ▲
+     packages/plantillas      packages/excel     packages/dian
+     (formatos JSON)          (SheetJS → CSV)    (facturas UBL)
+                     │                                 │
+          ┌──────────┴──────────┐           ┌──────────┴──────────┐
+          │ apps/web            │  opcional │ apps/api            │
+          │ React + Vite        │ ────────► │ node:http + pg      │
+          │ todo en el navegador│           │ cola + worker       │
+          └─────────────────────┘           └─────────────────────┘
+```
+
+El flujo dentro del núcleo:
+
+1. **Ingesta.** Cada archivo entra a una cola y se lee con una plantilla JSON
+   que describe separador, columnas, formato de fecha y decimales. El resultado
+   es una lista de `Movimiento` con fecha ISO, monto en centavos y referencia
+   normalizada.
+2. **Reglas.** Las reglas del perfil sacan del cruce lo que no es un pago de
+   ventas (por ejemplo el GMF o una consignación en efectivo).
+3. **Cruce por pases.** Cada pase trabaja solo con lo que el anterior dejó
+   libre: exacto, con tolerancia, agrupado N:1 y N:M.
+4. **Revisión.** Lo que supera el umbral del perfil queda automático; el resto
+   llega como sugerencia para que una persona lo confirme o lo rechace.
+
+## Decisiones técnicas
+
+**Montos en centavos enteros.** Ningún monto se guarda como decimal. Sumar
+`0.1 + 0.2` en punto flotante no da `0.3`, y en una conciliación una diferencia
+de un centavo cambia el resultado. Todos los parsers convierten a centavos al
+leer y el formato COP solo se aplica al mostrar.
+
+**Núcleo puro y sin dependencias.** `packages/core` no lee archivos ni hace
+peticiones: recibe texto y devuelve objetos. Por eso el mismo código corre en
+el navegador, en la API y en las pruebas sin adaptaciones. Las dependencias
+externas (SheetJS para Excel) quedan en paquetes aparte que se cargan solo si
+hacen falta.
+
+**Formatos como datos, no como código.** Agregar un banco es escribir un JSON,
+no modificar el motor. La plantilla se valida al cargarla y los errores se
+reportan en español. Para formatos que no son tablas (MT940, camt.053) hay
+lectores registrables con `registrarLector`, y la plantilla solo mapea sus
+campos. Cada plantilla tiene versión, y cada movimiento guarda con qué versión
+se leyó.
+
+**Cruce en pases de menor a mayor costo.** El pase exacto es un `Map` en O(n).
+El de tolerancia busca por rango en un árbol AVL. El agrupado es una búsqueda
+de suma de subconjuntos con poda y un presupuesto de 50.000 nodos para no
+bloquearse. Así los casos fáciles, que son la mayoría, no pagan el costo de los
+difíciles.
+
+**Asignación óptima solo donde importa.** Cuando varios abonos compiten por las
+mismas ventas, un algoritmo voraz puede dejar sin pareja a un abono que sí
+tenía una. Por eso las candidatas se modelan como grafo bipartito, se separa en
+componentes conexas y cada componente de hasta 60 nodos se resuelve con el
+algoritmo Húngaro (O(k³)). Las componentes más grandes usan el voraz. El perfil
+puede apagar esto con `cruceOptimo: false` y entonces el resultado es idéntico
+al de la versión 0.1.0.
+
+**Explicaciones en vez de solo puntajes.** Cada coincidencia lleva un texto
+como «Faltan $24.198,20 (4,65 %) ≈ comisión 3,15 % + ReteFuente 1,5 %», y cada
+movimiento libre su motivo: fuera de tolerancia por cuánto, sin candidatos en
+la ventana o candidato tomado por otra coincidencia. Quien revisa necesita
+saber por qué, no solo un número.
+
+**Revisión reversible.** La sesión de revisión usa dos pilas para deshacer y
+rehacer, y una bitácora que solo crece: deshacer agrega un registro, nunca
+borra uno. En la API cada confirmación o rechazo es una transacción.
+
+**Privacidad por defecto.** El panel procesa los archivos en el navegador; no
+salen del equipo salvo que el usuario guarde en el servidor. Esto permite usar
+la herramienta con extractos reales sin depender de la infraestructura del
+proyecto.
+
+**TypeScript sin paso de compilación.** Node 24 ejecuta TypeScript quitando los
+tipos, así que el código solo usa sintaxis borrable (sin `enum` ni
+`namespace`). En el monorepo los paquetes se resuelven a `src` mediante la
+condición `conciliador-src` declarada en `.npmrc`; los consumidores externos
+reciben `dist/` compilado con `npm run build:lib`.
+
+**API sin framework.** La API usa `node:http` y `pg` directamente. El
+enrutador es pequeño y no hacía falta más. Las migraciones son archivos SQL
+numerados que corren una vez cada uno, en transacción, y quedan registrados.
+
+**Cola en PostgreSQL.** Las conciliaciones grandes se encolan en la tabla
+`trabajos` y un worker las toma con `FOR UPDATE SKIP LOCKED`, de modo que
+varios workers no toman el mismo trabajo. Se evitó agregar Redis u otro
+servicio solo para esto. Un trabajo que falla se reintenta, con un máximo de tres intentos.
+
+**Multiempresa con lo mínimo.** Contraseñas con scrypt de `node:crypto`,
+tokens JWT HS256 firmados sin librerías externas y roles `lector`, `analista`
+y `admin`. Cada consulta filtra por la empresa del token. Plantillas y perfiles
+no se sobrescriben: cada cambio crea una versión.
+
+**Regex de usuario acotadas.** Las reglas y plantillas aceptan expresiones
+regulares escritas por el usuario. Para evitar ReDoS se rechazan cuantificadores
+anidados y referencias hacia atrás, el texto evaluado se recorta a 256
+caracteres y cada evaluación tiene un tiempo máximo.
+
+**Despliegue en una sola plataforma.** En Vercel el panel es estático y toda la
+API es una función que atiende `/api/*`, con la base en Neon. Como Vercel no
+mantiene procesos vivos, no hay worker: cada consulta a `GET /trabajos/:id`
+procesa antes un trabajo pendiente, y la cola avanza mientras el panel espera
+el resultado.
+
+## Estructuras de datos
+
+Implementadas a mano en `packages/core/src/estructuras/`, con pruebas en
+`packages/core/test/estructuras.test.ts`.
+
+| Estructura | Uso en el proyecto |
 |---|---|
-| Formatos | CSV/delimitado y ancho fijo por plantilla JSON; **Excel** (`.xlsx`, `.xls`) con `@conciliador/excel`; **MT940** y **camt.053** como lectores registrados; **facturas electrónicas DIAN** (UBL 2.1) con `@conciliador/dian` |
-| Plantillas incluidas | Extracto bancario CSV, Asobancaria 2001, Wompi, Mercado Pago, ventas de un ERP, MT940 genérico y camt.053 genérico. Cada movimiento guarda `plantillaVersion` |
-| Cruce | Exacto (con la Referencia de Pago de Bre-B como llave), 1:1 con tolerancia, N:1 por suma de subconjuntos y **N:M**; asignación **óptima con el algoritmo Húngaro** por componente del grafo |
-| Reglas y tarifas | Reglas AND/OR ordenadas (clasificar, exigir referencia, cambiar tolerancia), GMF 4×1000 como gasto, tarifas de comisión y retenciones con vigencia, medio de pago y municipio |
-| Explicabilidad | Cada coincidencia explica su diferencia y cada movimiento sin cruzar trae su **motivo** («Monto fuera de tolerancia por $3.398,20…», «Su candidato V3 quedó en c4…») |
-| Revisión | Confirmar, rechazar, emparejar a mano, deshacer y rehacer, bitácora que solo crece |
-| API | Multiempresa con usuarios, roles y JWT; plantillas y perfiles por empresa con historial de versiones; **cola de trabajos** en PostgreSQL con worker aparte; paginación, registros JSON y métricas |
-| Librería | `@conciliador/core`, `@conciliador/plantillas`, `@conciliador/excel` y `@conciliador/dian` compilan a JS + `.d.ts` (`npm run build:lib`), listos para npm |
+| Cola | Ingesta de archivos en orden de llegada; recorrido BFS de las componentes del grafo |
+| Pila (dos) | Deshacer y rehacer en la sesión de revisión |
+| Árbol AVL | Ventas indexadas por monto; `buscarRango` devuelve las candidatas dentro de la tolerancia |
+| Trie | Detección de plantilla por encabezados; referencias truncadas |
+| MinHeap / TopK | Los cinco mejores candidatos de cada abono en O(log k) |
+| Grafo bipartito | Aristas abono–venta candidata; cada componente conexa se resuelve por separado y el panel la dibuja |
 
-## Cómo funciona
-
-```
- extracto.csv ─┐                                      ┌─ Coincidencias
- recaudo.txt  ─┤   PLANTILLA JSON          MOVIMIENTO │   automáticas / sugeridas
- ventas.csv   ─┤  (formato, columnas, ─►   ESTÁNDAR   │   + explicación
-               │   fecha, decimales)      (centavos   │
-   Cola ───────┘   detección con Trie      enteros)   └─ Sin cruzar
-                                              │
-                                              ▼
-                      ┌──────────── CRUCE POR PASES (de barato a caro) ───────────┐
-                      │ 1. Exacta     Map  monto|referencia, luego monto|fecha    │
-                      │ 2. Tolerancia ArbolAVL por monto + Trie de referencias    │
-                      │               + TopK (MinHeap) + GrafoBipartito           │
-                      │ 3. Agrupada   N ventas -> 1 abono, backtracking con poda  │
-                      │ 4. N:M        varios abonos <-> varias ventas por         │
-                      │               componente del grafo (cruceOptimo)          │
-                      └───────────────────────────────────────────────────────────┘
-                                              │
-                                              ▼
-                      REVISIÓN HUMANA (SesionRevision)
-                      confirmar / rechazar / emparejar a mano
-                      deshacer y rehacer con dos Pilas · bitácora que solo crece
-                                              │
-                                              ▼
-                      Panel React (navegador)  ──opcional──►  API Node + PostgreSQL
-                                                              (cada decisión en una transacción)
-```
-
-1. **Plantilla.** Un JSON describe el formato: separador, columnas, formato de
-   fecha y separador decimal, filas a omitir, posiciones de ancho fijo. El
-   registro detecta la plantilla de un archivo por sus encabezados o por el
-   prefijo de la primera línea.
-2. **Movimiento estándar.** Toda fila termina como un `Movimiento`
-   (`packages/core/src/modelo.ts`): fecha ISO, monto en **centavos enteros**,
-   referencia normalizada. El motor de cruce no sabe de bancos.
-3. **Cruce.** Primero las reglas del perfil sacan lo que no es un pago (por
-   ejemplo el GMF). Luego van los pases; cada uno trabaja solo con lo que el
-   anterior dejó libre. Las tolerancias, la ventana de días, las retenciones,
-   las reglas y las tarifas vienen de un **perfil** por empresa, que también
-   es JSON.
-4. **Revisión.** Lo que supera `umbralAutomatico` queda automático. Lo demás
-   llega como sugerencia, y la persona confirma, rechaza (los movimientos
-   quedan libres otra vez) o empareja a mano.
-
-## Estructuras de datos propias
-
-Todas están implementadas a mano en `packages/core/src/estructuras/`, sin
-librerías, y tienen pruebas en `packages/core/test/estructuras.test.ts`.
-
-| Estructura | Archivo | Dónde se usa en el conciliador |
-|---|---|---|
-| **Cola** (FIFO con índice de inicio) | `Cola.ts` | `procesarArchivos` atiende los archivos en orden de llegada; BFS de `GrafoBipartito.componentes()` |
-| **Pila** (×2) | `Pila.ts` | Deshacer y rehacer en `SesionRevision` |
-| **Árbol AVL** (claves repetidas) | `ArbolAVL.ts` | Pase 2: ventas indexadas por monto; `buscarRango` da las candidatas dentro de la tolerancia |
-| **Trie** | `Trie.ts` | Detección de plantilla por encabezados y prefijo de línea (`RegistroPlantillas`); referencias truncadas en el pase 2 |
-| **MinHeap** + **TopK** | `MinHeap.ts` | Pase 2: guarda los 5 mejores candidatos de cada abono en O(log k) |
-| **Grafo bipartito** (lista de adyacencia) | `GrafoBipartito.ts` | Pase 2: aristas abono↔venta candidata; cada componente conexa es un conflicto que se resuelve aparte; el panel lo dibuja |
-
-Desde la versión 0.2.0 hay además algoritmos propios que se apoyan en ellas:
-el **Húngaro** (`cruce/hungaro.ts`, O(k³) por componente de hasta 60 nodos),
-la **suma de subconjuntos por componente** del pase N:M y un **parser XML**
-(`plantillas/xml.ts`) que comparten camt.053 y las facturas DIAN.
-
-La justificación y la complejidad de cada una están en
+La justificación y el análisis de complejidad de cada una están en
 [docs/DOCUMENTO_FINAL.md](docs/DOCUMENTO_FINAL.md).
 
-## Formatos
+## Uso
 
-| Formato | Cómo se lee | Plantilla o paquete |
-|---|---|---|
-| CSV / TXT delimitado | Plantilla declarativa (`tipo: "delimitado"`) | `banco-csv-generico`, `wompi-transacciones`, `mercadopago-liquidacion`, `ventas-csv-generico` |
-| Ancho fijo | Plantilla declarativa (`tipo: "anchoFijo"`) | `asobancaria-2001` (latin1) |
-| Excel `.xlsx` / `.xls` | `leerExcel` convierte la hoja en CSV con `;` y se usa **la misma plantilla delimitada** del CSV (campo opcional `hoja`) | `@conciliador/excel` (SheetJS) |
-| MT940 (SWIFT) | Lector registrado `mt940`: campos `:61:`/`:86:`, verifica `:60F:` + movimientos = `:62F:` | `mt940-generico` |
-| camt.053 (ISO 20022) | Lector registrado `camt053`: cada `<Ntry>` es un movimiento, verifica saldo de apertura + movimientos = cierre | `camt053-generico` |
-| Factura electrónica DIAN (UBL 2.1) | `leerFacturaUBL` / `leerFacturas`: número, CUFE, NIT, IVA, retenciones y total a pagar; lado `ventas` | `@conciliador/dian` |
-
-Un formato que no cabe en una plantilla se agrega con `registrarLector({ tipo,
-leer, detectar? })`; la plantilla solo dice `"tipo": "<ese tipo>"` y mapea los
-campos que el lector entrega. La detección automática funciona con todos los
-formatos de plantilla (el Excel, después de convertirlo a CSV); las facturas
-DIAN se leen con su propio paquete.
-
-La columna opcional `REFERENCIA PAGO` (Referencia de Pago de **Bre-B**) va a
-`referenciaPago`, y el pase exacto la usa como llave principal. Por ese cambio
-de mapeo la plantilla `banco-csv-generico` está en la versión 2.
-
-## Reglas, tarifas y cruce óptimo
-
-Todo esto son campos **opcionales** del perfil; un perfil de 0.1.0 sigue siendo
-válido.
-
-```json
-{
-  "reglas": [{
-    "id": "gmf-4x1000", "nombre": "GMF 4x1000 como gasto bancario", "prioridad": 10, "lado": "banco",
-    "si": { "alguna": [{ "campo": "descripcion", "op": "contiene", "valor": "GMF" },
-                       { "campo": "descripcion", "op": "contiene", "valor": "4X1000" }] },
-    "accion": { "tipo": "clasificar", "categoria": "gasto:GMF" }
-  }],
-  "tarifas": [
-    { "nombre": "Comision",   "tasa": 0.0265, "base": "bruto",    "desde": "2026-01-01" },
-    { "nombre": "IVA",        "tasa": 0.19,   "base": "comision", "desde": "2026-01-01" },
-    { "nombre": "ReteICA",    "tasa": 0.0033, "base": "bruto",    "desde": "2026-01-01", "municipio": "Cali" }
-  ],
-  "municipio": "Cali",
-  "cruceOptimo": true
-}
-```
-
-- **Reglas** (`cruce/reglas.ts`): condiciones `todas` (AND) y `alguna` (OR)
-  sobre referencia, descripción, plantilla (`igual`, `contiene`, `empiezaPor`,
-  `regex`), monto o fecha (`entre`). Acciones: `clasificar` (el movimiento sale
-  del cruce y aparece en `resultado.clasificados`), `exigirReferencia` y
-  `tolerancia`. Se aplican por `prioridad` (menor primero). `REGLA_GMF` viene
-  lista.
-- **Tarifas** (`cruce/tarifas.ts`): comisión, IVA, ReteFuente, ReteICA, ReteIVA
-  o GMF con vigencia (`desde`/`hasta`), medio de pago y municipio. Las vigentes
-  a la fecha del abono explican el faltante. `retenciones` del MVP sigue
-  funcionando.
-- **Regex seguras**: toda regex de usuario (reglas y plantillas) pasa por
-  `revisarRegex` contra ReDoS (ver «Seguridad» en el documento final).
-- **Cruce óptimo** (`cruceOptimo`, por defecto `true`): el pase 2 asigna con el
-  algoritmo Húngaro en vez del greedy, se activa el pase N:M (`agrupadaNM`) y
-  en el pase 3 un abono cuya referencia nombra una venta solo se agrupa con
-  ella. **`cruceOptimo: false` da exactamente el resultado de 0.1.0.**
-- `maxGrupo` limita las ventas por grupo en los pases N:1 y N:M. Con `0` o `1`
-  no se agrupa nada (ni N:1 ni N:M), igual que en 0.1.0.
-- **Motivos**: `resultado.motivos[id]` dice en español por qué no cruzó cada
-  movimiento libre: sin candidatos en la ventana, fuera de tolerancia por
-  cuánto, candidato tomado por otra coincidencia, demasiados candidatos para
-  agrupar, débito o venta negativa.
-
-## Cómo correrlo
-
-Requisitos: **Node 24** (ejecuta TypeScript sin compilar; desde 22.18 también
-funciona) y npm. PostgreSQL es opcional.
+Requiere Node 24 (o 22.18 en adelante) y npm. PostgreSQL es opcional.
 
 ```bash
-npm install                  # instala los workspaces
-npm test                     # núcleo, plantillas, excel, dian y API (las de PostgreSQL se saltan sin base)
-npm run typecheck            # tipos del núcleo, paquetes, API y panel
-npm run dev:web              # panel en http://localhost:5173
-npm run start:api            # API en http://localhost:3000
-npm run worker -w apps/api   # worker de la cola de trabajos (proceso aparte, necesita DATABASE_URL)
-npm run build:web            # compila el panel a apps/web/dist
-npm run build:lib            # compila core, plantillas, excel y dian a dist/ (JS + .d.ts)
-npm run medir                # tiempo de conciliar 10.000 y 100.000 movimientos sintéticos
-npm run carga                # prueba de carga: 10⁶ movimientos y la cola con workers reales
-npm run anonimizar -- entrada.csv salida.csv   # anonimiza un archivo real para donarlo
+npm install
+npm run dev:web      # panel en http://localhost:5173
+npm test             # pruebas de núcleo, paquetes y API
+npm run typecheck
 ```
 
-Dentro del monorepo los paquetes `@conciliador/*` se resuelven a su TypeScript
-sin compilar gracias a la condición `conciliador-src` que `.npmrc` pasa a todos
-los scripts de npm. Si corre un script directamente con `node`, agregue
-`--conditions=conciliador-src` (por ejemplo
-`node --conditions=conciliador-src scripts/carga.ts --solo-nucleo`); sin ella
-Node usaría `dist/`, que solo existe tras `npm run build:lib`.
+En el panel, la pestaña Cargar trae datos de demostración de una tienda
+ficticia. También se pueden arrastrar archivos propios.
 
-**Prueba de carga** (`scripts/carga.ts`): `--solo-nucleo` concilia 10⁶
-movimientos sintéticos por lotes; la parte de cola necesita
-`CARGA_DATABASE_URL` (una base de pruebas: escribe en la empresa `demo`) y
-acepta `--trabajos`, `--por-trabajo` y `--workers`.
-
-**Anonimizar** (`scripts/anonimizar.ts`): reemplaza nombres, cédulas/NIT,
-correos, cuentas y referencias por valores sintéticos **estables** (con la
-misma `--clave`, el mismo valor da el mismo reemplazo en todos los archivos del
-comercio, así siguen cruzando) y conserva el formato exacto: líneas, columnas,
-separadores y longitudes de ancho fijo. Opciones: `--plantilla id`,
-`--clave secreto`, `--desplazar-dias N`, `--factor-montos F`, `--hoja nombre`.
-La guía para conseguir archivos reales está en
-[docs/GUIA_VALIDACION.md](docs/GUIA_VALIDACION.md).
-
-**Panel.** Abra la pestaña *Cargar* y pulse una de las demos (datos
-sintéticos de la tienda ficticia «La Ceiba», incluida una de pagos B2B contra
-facturas DIAN), o arrastre sus propios archivos: CSV, TXT, Excel, MT940,
-camt.053 o facturas XML. El perfil se edita con reglas y tarifas, y los
-resultados muestran el motivo de cada movimiento sin cruzar.
-Todo se procesa **en el navegador**: los archivos no salen del equipo a menos
-que se pulse «Guardar en el servidor». Ese botón, y la pestaña *Servidor*
-(ingreso, plantillas y perfiles de la empresa con sus versiones, conciliación
-por la cola), solo aparecen si existe `VITE_API_URL`:
-
-```bash
-VITE_API_URL=http://localhost:3000 npm run dev:web
-```
-
-**API.** Variables (ver `apps/api/.env.example`):
-
-| Variable | Para qué |
-|---|---|
-| `DATABASE_URL` | PostgreSQL. Si falta, la API arranca en **modo memoria**: `/salud`, `/plantillas` y `POST /conciliaciones` funcionan sin guardar; el resto responde 503 |
-| `PORT` | Puerto (3000 por defecto) |
-| `CORS_ORIGEN` | `*` o lista de orígenes separados por coma (p. ej. la URL de Netlify) |
-| `JWT_SECRETO` | Secreto para firmar los tokens (HS256). Si falta, se usa uno temporal y los tokens se invalidan al reiniciar (en Vercel se deriva uno estable de `DATABASE_URL`, pero conviene definirlo) |
-| `JWT_DURACION_S` | Vida de un token en segundos (8 horas por defecto) |
-| `CONFIAR_PROXY` | `1` detrás de un proxy propio (Render): la IP del límite de ingresos sale de `X-Forwarded-For` |
-| `TRABAJO_MAX_INTENTOS` | Intentos de cada trabajo de la cola antes de quedar `fallido` (3) |
-| `WORKER_CONCURRENCIA`, `WORKER_INTERVALO_MS`, `WORKER_APAGADO_MS` | Worker: trabajos a la vez, espera con la cola vacía, tope para terminar tras `SIGTERM` |
-| `LOG_NIVEL` | `depurar`, `info`, `aviso`, `error` o `silencio` (registros JSON, una línea por evento) |
-| `PG_MAX_CONEXIONES` | Conexiones del pool por proceso (10) |
-| `DATABASE_URL_PRUEBA` | Solo pruebas: una base desechable para las pruebas de la API con PostgreSQL |
-
-El esquema se aplica solo al arrancar la API o el worker, con **migraciones
-numeradas** (`apps/api/src/migraciones/NNN_nombre.sql`): cada una corre una
-vez, en su propia transacción, y queda anotada en la tabla `migraciones`. Una
-base creada por la versión 0.1.0 se migra sin perder datos (quedan en la
-empresa `demo`).
+Para levantar la API con base de datos:
 
 ```bash
 DATABASE_URL=postgres://usuario:clave@localhost:5432/conciliador npm run start:api
-curl http://localhost:3000/salud          # {"ok":true,"baseDeDatos":true}
-
-# Pruebas de la API contra una base real:
-DATABASE_URL_PRUEBA=postgres://postgres@localhost:5432/postgres npm test
+npm run worker -w apps/api                       # worker de la cola, proceso aparte
+VITE_API_URL=http://localhost:3000 npm run dev:web
 ```
 
-Rutas del MVP (siguen iguales; sin token operan en la empresa pública
-`demo`): `GET /salud`, `GET /plantillas`, `POST /conciliaciones`,
-`GET /conciliaciones`, `GET /conciliaciones/:id`,
-`POST /conciliaciones/:id/coincidencias/:cid/confirmar` y `.../rechazar`.
+Sin `DATABASE_URL` la API arranca en modo memoria: concilia pero no guarda. Las
+variables de entorno están en `apps/api/.env.example` y las rutas en
+[docs/CONTRATOS.md](docs/CONTRATOS.md).
 
-**Multiempresa.** Con `Authorization: Bearer <token>` cada petición opera en la
-empresa del usuario y con su rol (`lector` < `analista` < `admin`):
+Otros comandos:
 
-| Ruta | Rol | Qué hace |
-|---|---|---|
-| `POST /auth/registro` | público | Crea una empresa y su primer usuario `admin` |
-| `POST /auth/ingreso` | público | `{ correo, contrasena }` → `{ token, usuario }` (con límite de intentos por IP) |
-| `GET` / `POST /empresa/usuarios` | admin | Lista y crea usuarios de la empresa |
-| `GET` / `POST /empresa/plantillas`, `GET /empresa/plantillas/:id/versiones` | lector / analista | Plantillas propias; cada cambio crea una versión, nunca se sobrescribe |
-| `GET` / `POST /empresa/perfiles`, `GET /empresa/perfiles/:id/versiones` | lector / analista | Perfiles propios con historial; `POST /conciliaciones` acepta `perfilId` y `perfilVersion` |
-| `POST /conciliaciones?asincrono=1` | analista | Encola y responde **202** con `trabajoId`; el worker concilia y guarda |
-| `GET /trabajos/:id` | lector | Estado del trabajo: `pendiente`, `procesando`, `hecho` (con `conciliacionId`) o `fallido` (con el error) |
-| `GET /metricas` | lector | Peticiones por ruta, tiempos y estado de la cola de la empresa |
+| Comando | Qué hace |
+|---|---|
+| `npm run build:lib` | Compila los paquetes a `dist/` con sus tipos |
+| `npm run build:vercel` | Arma la salida para Vercel (panel, función y migraciones) |
+| `npm run migrar` | Aplica las migraciones a la base de `DATABASE_URL` |
+| `npm run medir` | Mide el tiempo de conciliar 10.000 y 100.000 movimientos |
+| `npm run carga` | Prueba de carga con un millón de movimientos y la cola |
+| `npm run anonimizar -- entrada.csv salida.csv` | Reemplaza datos personales conservando el formato |
 
-Los listados aceptan `?limite=&cursor=` (paginación por cursor; la página
-siguiente llega en la cabecera `X-Cursor-Siguiente`). Detalles en
-[docs/CONTRATOS.md](docs/CONTRATOS.md) §9, §12 y §13.
+### Como librería
 
-```bash
-# Registro, ingreso y conciliación asíncrona (datos sintéticos)
-curl -X POST localhost:3000/auth/registro -H 'Content-Type: application/json' \
-  -d '{"empresa":"Tienda Ejemplo","nombre":"Ana","correo":"ana@ejemplo.test","contrasena":"una-clave-larga-123"}'
-TOKEN=$(curl -s -X POST localhost:3000/auth/ingreso -H 'Content-Type: application/json' \
-  -d '{"correo":"ana@ejemplo.test","contrasena":"una-clave-larga-123"}' | node -p 'JSON.parse(require("fs").readFileSync(0)).token')
-curl -X POST 'localhost:3000/conciliaciones?asincrono=1' -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' -d @cuerpo.json      # { banco: {nombre, texto}, ventas: {...} }
-curl localhost:3000/trabajos/<trabajoId> -H "Authorization: Bearer $TOKEN"
+```ts
+import { RegistroPlantillas, procesarArchivos, conciliar } from '@conciliador/core';
+import { PLANTILLAS } from '@conciliador/plantillas';
+
+const registro = new RegistroPlantillas();
+PLANTILLAS.forEach((p) => registro.registrar(p));
+
+const [banco, ventas] = procesarArchivos([extracto, reporteVentas], registro);
+const resultado = conciliar(banco.movimientos, ventas.movimientos, perfil);
 ```
 
-Despliegue en producción en **Vercel + Neon** (panel, API y base en un solo proyecto):
-[docs/DESPLIEGUE_VERCEL.md](docs/DESPLIEGUE_VERCEL.md). En Vercel no hay worker permanente: cada
-consulta a `GET /trabajos/:id` procesa antes un trabajo pendiente, así la cola avanza mientras el
-panel espera. Alternativa con Render (API + worker) y Netlify: [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md).
+`extracto` y `reporteVentas` son objetos `{ nombre, texto }`. El perfil es
+opcional.
 
-```bash
-npm run build:vercel              # arma .vercel/output (panel + función /api + migraciones)
-DATABASE_URL=... npm run migrar   # aplica las migraciones (también corren solas al arrancar)
-```
+### Agregar un banco
 
-## Agregar un banco nuevo (sin programar)
-
-Un banco nuevo se agrega con un archivo JSON y sin tocar código. Ejemplo para
-un extracto **ficticio** que se ve así:
-
-```
-Fecha Mov|Concepto|Documento|Credito|Debito
-2026-10-01|SALDO INICIAL|||
-2026-10-01|ABONO PSE REF:PED-2026-0001|884512|89500.00|
-2026-10-02|PAGO PROVEEDOR|884513||-120000.00
-2026-10-02|TRANSFERENCIA REF PED-2026-0002|884514|1250000.50|
-```
-
-`packages/plantillas/formatos/banco-ejemplo-csv.json`:
+Se crea un JSON en `packages/plantillas/formatos/` que describe el archivo:
 
 ```json
 {
@@ -317,20 +229,12 @@ Fecha Mov|Concepto|Documento|Credito|Debito
   "nombre": "Banco Ejemplo: movimientos CSV",
   "version": 1,
   "lado": "banco",
-  "descripcion": "Extracto ficticio separado por '|', fechas aaaa-mm-dd y montos con punto decimal. Los débitos (Credito vacío) se omiten.",
-  "fuente": "Formato inventado para la documentación.",
   "tipo": "delimitado",
-  "codificacion": "latin1",
   "separador": "|",
   "separadorDecimal": ".",
   "formatoFecha": "yyyy-MM-dd",
   "filasEncabezado": 1,
-  "omitirSi": [
-    { "campo": "Concepto", "regex": "^(SALDO|TOTAL)" },
-    { "campo": "Credito", "regex": "^\\s*$" }
-  ],
-  "soloEntradas": true,
-  "detectar": { "encabezados": ["Fecha Mov", "Concepto", "Documento", "Credito", "Debito"] },
+  "detectar": { "encabezados": ["Fecha Mov", "Concepto", "Credito"] },
   "columnas": {
     "fecha": "Fecha Mov",
     "descripcion": "Concepto",
@@ -340,141 +244,40 @@ Fecha Mov|Concepto|Documento|Credito|Debito
 }
 ```
 
-Con este archivo de ejemplo salen dos movimientos: `PED20260001` por $89.500 y
-`PED20260002` por $1.250.000,50. Para sumarla a las incluidas:
+Luego se registra en `packages/plantillas/index.ts`. Las opciones completas,
+incluido el ancho fijo, están en [CONTRIBUTING.md](CONTRIBUTING.md) y en
+[docs/CONTRATOS.md](docs/CONTRATOS.md).
 
-1. Guarde el JSON en `packages/plantillas/formatos/`.
-2. Impórtelo en `packages/plantillas/index.ts` y agréguelo a `PLANTILLAS`.
-3. Si quiere, agregue un archivo sintético en `muestras/` con su prueba
-   (la guía completa está en [CONTRIBUTING.md](CONTRIBUTING.md)).
-4. `npm test`. `validarPlantilla` rechaza la plantilla con una lista de errores
-   en español si algo está mal.
-   Las regex (`omitirSi`, `regex` de columnas y reglas del perfil) tienen límites contra
-   ReDoS: hasta 200 caracteres, sin cuantificadores anidados como `(a+)+`, sin `(a|b)+`,
-   sin `\1`, a lo sumo dos `*`/`+`, y se aplican a los primeros 256 caracteres del campo.
-
-Para ancho fijo (`"tipo": "anchoFijo"`) cada columna usa
-`{ "inicio": 51, "longitud": 14, "decimalesImplicitos": 2 }`. Vea
-`formatos/asobancaria-2001.json`. Una columna que no siempre viene se marca
-`{ "de": "REFERENCIA PAGO", "opcional": true }`. Todas las opciones están en
-[docs/CONTRATOS.md](docs/CONTRATOS.md) §3 y §9.
-
-Si un formato ya publicado cambia, no edite la plantilla vieja: suba `version`.
-Cada movimiento guarda `plantillaVersion`, así se sabe con qué mapeo se leyó.
-
-Sin tocar el repositorio, la pestaña **Plantillas** del panel ofrece un
-asistente que arma la plantilla desde un archivo de muestra, y también permite
-importar un JSON. Sin sesión esas plantillas viven solo en ese navegador, y
-«Guardar en el servidor» se desactiva cuando una de ellas está en uso (la demo
-pública solo conoce las incluidas). Con sesión, la pestaña *Servidor* las sube
-como plantillas de la empresa, con historial de versiones, y la API las usa al
-conciliar.
-
-## Usar el núcleo como librería
-
-Los cuatro paquetes están listos para npm (versión 0.2.0; falta solo el
-`npm publish` con la cuenta del autor, ver fase 14 del plan):
-
-```bash
-npm install @conciliador/core @conciliador/plantillas   # + @conciliador/excel o @conciliador/dian si los necesita
-```
-
-| Paquete | Qué trae | Dependencias |
-|---|---|---|
-| `@conciliador/core` | Estructuras, plantillas, lectores MT940/camt.053, cruce, reglas, tarifas, sesión, parser XML | ninguna |
-| `@conciliador/plantillas` | Plantillas JSON incluidas y muestras sintéticas | `core` |
-| `@conciliador/excel` | `leerExcel(datos, { hoja? })` → `{ hojas, texto }` (CSV con `;`) | `xlsx` (SheetJS) |
-| `@conciliador/dian` | `leerFacturaUBL`, `leerFacturas` (UBL 2.1) | `core` |
-
-`npm run build:lib` compila los cuatro a `dist/` (JS + `.d.ts`) y los `exports`
-publican `dist/`. Para probar el paquete sin publicarlo:
-`npm pack -w packages/core` y `npm install ./conciliador-core-0.2.0.tgz` en
-un proyecto limpio. Ejemplo desde el código fuente del monorepo:
-
-```ts
-import { readFileSync } from 'node:fs';
-import { RegistroPlantillas, procesarArchivos, conciliar, SesionRevision } from '@conciliador/core';
-import { PLANTILLAS } from '@conciliador/plantillas';
-
-const registro = new RegistroPlantillas();
-for (const p of PLANTILLAS) registro.registrar(p);
-const leer = (ruta: string) => ({ nombre: ruta, texto: readFileSync(ruta, 'utf8') });
-const [banco, ventas] = procesarArchivos([leer('extracto-banco.csv'), leer('ventas-wompi.csv')], registro);
-const resultado = conciliar(banco.movimientos, ventas.movimientos); // perfil opcional
-for (const c of resultado.coincidencias) console.log(c.id, c.tipo, c.estado, c.explicacion);
-new SesionRevision(resultado).confirmar('c1');                     // revisión con deshacer/rehacer
-```
-
-Con las muestras de `packages/plantillas/muestras/` imprime 13 coincidencias:
-4 exactas, 6 con tolerancia y 3 agrupadas. `resultado.motivos` explica los
-movimientos que quedaron libres.
-
-Facturas DIAN contra pagos del banco:
-
-```ts
-import { leerFacturas } from '@conciliador/dian';
-const { movimientos: facturas, errores } = leerFacturas([xml1, xml2]); // lado 'ventas', referencia = número
-const r = conciliar(pagosDelBanco, facturas, { ...PERFIL_POR_DEFECTO, ventanaDias: 45 });
-```
-
-## Estructura de carpetas
+## Estructura del repositorio
 
 ```
-conciliador/
-├── packages/
-│   ├── core/                    motor puro: sin E/S ni dependencias
-│   │   ├── src/
-│   │   │   ├── modelo.ts        Movimiento, centavos, fechas, formato COP
-│   │   │   ├── estructuras/     Cola, Pila, ArbolAVL, Trie, MinHeap/TopK, GrafoBipartito
-│   │   │   ├── plantillas/      tipos, validar, csv, leer, registro (detección), lectores,
-│   │   │   │                    mt940, camt053, xml (parser propio con namespaces)
-│   │   │   ├── ingesta.ts       procesarArchivos (Cola)
-│   │   │   ├── cruce/           perfil, puntaje, pases, hungaro, reglas, tarifas, motivos, conciliar
-│   │   │   ├── regexSegura.ts   revisión de regex de usuario contra ReDoS
-│   │   │   └── sesion.ts        SesionRevision (dos Pilas + bitácora)
-│   │   └── test/                pruebas con node:test
-│   ├── plantillas/              formatos/*.json, muestras sintéticas, ESCENARIO.md
-│   ├── excel/                   leerExcel (SheetJS) -> CSV para las plantillas delimitadas
-│   └── dian/                    facturas electrónicas UBL 2.1, muestras sintéticas
-├── apps/
-│   ├── web/                     panel React 18 + Vite
-│   └── api/                     node:http + pg: auth, empresas, migraciones/, trabajos (cola),
-│                                worker.ts, vercel.ts (entrada de Vercel), métricas, pruebas
-├── scripts/                     medir, carga, anonimizar, compilar-lib, construir-vercel
-├── docs/                        PLAN, CONTRATOS, DOCUMENTO_FINAL, DESPLIEGUE_VERCEL, DESPLIEGUE, GUIA_VALIDACION
-├── .github/workflows/ci.yml     tipos, pruebas con PostgreSQL, build:lib y build del panel
-├── vercel.json                  despliegue principal (Vercel + Neon)
-├── render.yaml · netlify.toml   despliegue alternativo (API + worker, panel)
-├── CHANGELOG.md · CONTRIBUTING.md
-└── LICENSE
+packages/
+  core/         modelo, estructuras, plantillas, cruce, reglas, tarifas, sesión
+  plantillas/   formatos JSON incluidos y muestras sintéticas
+  excel/        conversión de Excel a CSV
+  dian/         lectura de facturas electrónicas UBL 2.1
+apps/
+  web/          panel React
+  api/          API HTTP, migraciones, cola y worker
+scripts/        medición, carga, anonimización y compilación
+docs/           plan, contratos, documento final y guías de despliegue
 ```
 
-## Integrantes
+## Documentación
 
-Proyecto individual.
+- [Documento final](docs/DOCUMENTO_FINAL.md): diseño, estructuras y complejidad.
+- [Contratos](docs/CONTRATOS.md): tipos, plantillas, perfiles y API.
+- [Plan por fases](docs/PLAN.md).
+- [Despliegue en Vercel y Neon](docs/DESPLIEGUE_VERCEL.md).
+- [Despliegue alternativo en Render y Netlify](docs/DESPLIEGUE.md).
+- [Validación con archivos reales](docs/GUIA_VALIDACION.md).
+- [Registro de cambios](CHANGELOG.md).
 
-| Nombre | Código | Rol |
-|---|---|---|
-| Joan Mateo Cardona Lorza | _(por completar)_ | Desarrollo completo |
+## Autor
 
-## Enlaces
-
-| Recurso | URL |
-|---|---|
-| Panel (Vercel) | <URL_VERCEL> |
-| API | <URL_VERCEL>/api |
-| Salud de la API | <URL_VERCEL>/api/salud |
-| Repositorio | <URL_REPOSITORIO> |
-| Paquetes en npm | <URL_NPM> |
-| Documento final | [docs/DOCUMENTO_FINAL.md](docs/DOCUMENTO_FINAL.md) |
-| Plan y estado de las fases | [docs/PLAN.md](docs/PLAN.md) |
-| Despliegue | [docs/DESPLIEGUE_VERCEL.md](docs/DESPLIEGUE_VERCEL.md) |
-| Cambios | [CHANGELOG.md](CHANGELOG.md) |
-| Cómo aportar una plantilla | [CONTRIBUTING.md](CONTRIBUTING.md) |
+Joan Mateo Cardona Lorza.
 
 ## Licencia
 
-[MIT](LICENSE) © 2026 Joan Mateo Cardona Lorza.
-
-Los datos de muestra son sintéticos e inventados. Las plantillas se basan en
-documentación pública y no en archivos reales de ninguna entidad.
+MIT. Los datos de muestra son sintéticos. Las plantillas se basan en
+documentación pública, no en archivos de ninguna entidad.

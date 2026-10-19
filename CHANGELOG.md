@@ -147,6 +147,6 @@ MVP (fases 0 a 7).
   Pago, ventas CSV) con muestras sintéticas.
 - Panel React + Vite y API `node:http` + PostgreSQL con transacciones.
 
-[Sin publicar]: https://github.com/POR-COMPLETAR/conciliador/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/POR-COMPLETAR/conciliador/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/POR-COMPLETAR/conciliador/releases/tag/v0.1.0
+[Sin publicar]: https://github.com/JoanMateo77/conciliador-algoritmos/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/JoanMateo77/conciliador-algoritmos/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/JoanMateo77/conciliador-algoritmos/releases/tag/v0.1.0

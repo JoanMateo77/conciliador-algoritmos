@@ -18,7 +18,7 @@
   "author": "Joan Mateo Cardona Lorza",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/POR-COMPLETAR/conciliador.git",
+    "url": "git+https://github.com/JoanMateo77/conciliador-algoritmos.git",
     "directory": "packages/core"
   },
   "type": "module",

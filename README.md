@@ -50,6 +50,19 @@ automatiza ese cruce y, para lo que no puede resolver solo, dice por qué.
 - API con empresas, usuarios y roles, versiones de plantillas y perfiles, y
   una cola de trabajos para conciliaciones grandes.
 
+## Alcance
+
+Esta versión (0.2) cubre el ciclo completo: leer los archivos, cruzar, explicar
+y revisar, en el panel y en la API. Queda fuera por ahora:
+
+- **Validación en campo.** Faltan las entrevistas con contadores y comercios y
+  la prueba de las plantillas con archivos donados por ellos. La guía y el
+  anonimizador para hacerlo ya están listos.
+- **Publicación en npm.** Los paquetes compilan a `dist/` con sus tipos, pero
+  todavía no están publicados; hoy se usan desde este monorepo.
+- **Conectores directos.** No hay conexión con APIs de bancos ni de pasarelas:
+  los datos entran como archivos exportados.
+
 ## Arquitectura
 
 ```
@@ -229,7 +242,8 @@ const resultado = conciliar(banco.movimientos, ventas.movimientos, perfil);
 ```
 
 `extracto` y `reporteVentas` son objetos `{ nombre, texto }`. El perfil es
-opcional.
+opcional. Los paquetes aún no están en npm: el ejemplo funciona dentro del
+monorepo o con el `dist/` que genera `npm run build:lib`.
 
 ### Agregar un banco
 
@@ -282,7 +296,7 @@ docs/           plan, contratos, documento final y guías de despliegue
 - [Plan por fases](docs/PLAN.md).
 - [Despliegue en Vercel y Neon](docs/DESPLIEGUE_VERCEL.md).
 - [Despliegue alternativo en Render y Netlify](docs/DESPLIEGUE.md).
-- [Validación con archivos reales](docs/GUIA_VALIDACION.md).
+- [Guía de validación con usuarios](docs/GUIA_VALIDACION.md) (pendiente de ejecutar).
 - [Registro de cambios](CHANGELOG.md).
 
 ## Autor

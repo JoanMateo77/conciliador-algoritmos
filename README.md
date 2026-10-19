@@ -1,5 +1,11 @@
 # Conciliador de pagos
 
+[![CI](https://github.com/JoanMateo77/conciliador-algoritmos/actions/workflows/ci.yml/badge.svg)](https://github.com/JoanMateo77/conciliador-algoritmos/actions/workflows/ci.yml)
+[![Licencia MIT](https://img.shields.io/badge/licencia-MIT-blue.svg)](LICENSE)
+[![Demo](https://img.shields.io/badge/demo-vercel-black.svg)](https://conciliador-algoritmos-web.vercel.app)
+
+**Demo:** <https://conciliador-algoritmos-web.vercel.app> (botón «Usar datos de demo»).
+
 Herramienta en TypeScript para conciliar el extracto bancario de un comercio
 colombiano contra su reporte de ventas. Cruza los abonos con las ventas, explica
 cada diferencia (comisiones, IVA, retenciones) y deja para revisión manual solo
@@ -10,6 +16,12 @@ archivos en el navegador y una API opcional con PostgreSQL para trabajo
 multiempresa.
 
 Proyecto final de Estructuras de Datos II, Universidad Autónoma de Occidente.
+
+![Carga de archivos](docs/img/cargar.png)
+
+| Perfil de cruce | Grafo bipartito |
+|---|---|
+| ![Perfil](docs/img/perfil.png) | ![Grafo](docs/img/grafo.png) |
 
 ## Contexto
 
@@ -275,7 +287,7 @@ docs/           plan, contratos, documento final y guías de despliegue
 
 ## Autor
 
-Joan Mateo Cardona Lorza.
+Joan Mateo Cardona Lorza, código estudiantil 2243431.
 
 ## Licencia
 

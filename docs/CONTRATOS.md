@@ -88,6 +88,7 @@ type Mapeo = string   // delimitado: nombre de columna (o índice "#3"); ancho f
       decimalesImplicitos?: number; // montos sin separador (Asobancaria)
       signo?: 'negar' | 'abs';
       fijo?: string;            // valor constante
+      registro?: string;        // ancho fijo: lee de la última línea de ese tipo (ej. fecha del encabezado '01')
     };
 
 interface Plantilla {

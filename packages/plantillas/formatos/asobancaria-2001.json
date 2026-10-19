@@ -1,9 +1,9 @@
 {
   "id": "asobancaria-2001",
   "nombre": "Recaudo Asobancaria 2001",
-  "version": 1,
+  "version": 2,
   "lado": "banco",
-  "descripcion": "Archivo de recaudo de ancho fijo, registros de 162 caracteres: 01 encabezado de archivo, 05 encabezado de lote, 06 detalle, 08 control de lote y 09 control de archivo. Solo se leen los registros 06. Detalle: referencia del usuario 3-50 (48, con ceros a la izquierda), valor recaudado 51-64 (14, 2 decimales implícitos), procedencia 65-66, medio de pago 67-68, número de operación 69-74, autorización 75-80, entidad financiera 81-83, oficina 84-87, secuencia 88-94, causal de devolución 95-97 y reservado 98-162. El estándar no trae fecha por detalle: la fecha de recaudo está en el registro 01 (posiciones 13-20, yyyyMMdd). Como el lector procesa línea por línea, esta plantilla espera la fecha de recaudo repetida en las posiciones 98-105 del detalle (zona reservada); en un archivo real que deje esa zona en blanco hay que agregarla antes de leer. Layout basado en documentación pública (parser dnetix/asoban); verificar longitudes con un archivo real.",
+  "descripcion": "Archivo de recaudo de ancho fijo, registros de 162 caracteres: 01 encabezado de archivo, 05 encabezado de lote, 06 detalle, 08 control de lote y 09 control de archivo. Se leen los registros 06. Detalle: referencia del usuario 3-50 (48, con ceros a la izquierda), valor recaudado 51-64 (14, 2 decimales implícitos), procedencia 65-66, medio de pago 67-68, número de operación 69-74, autorización 75-80, entidad financiera 81-83, oficina 84-87, secuencia 88-94, causal de devolución 95-97 y reservado 98-162. El estándar no trae fecha por detalle: se toma la fecha de recaudo del registro 01 (posiciones 13-20, yyyyMMdd). Layout basado en documentación pública (parser dnetix/asoban).",
   "fuente": "Asobancaria, estándar de recaudo con código de barras 'Asobancaria 2001' (documentación pública) y el parser de código abierto dnetix/asoban (GitHub).",
   "tipo": "anchoFijo",
   "codificacion": "latin1",
@@ -14,7 +14,7 @@
   "columnas": {
     "referencia": { "inicio": 3, "longitud": 48, "regex": "0*([^\\s0]\\S*)" },
     "monto": { "inicio": 51, "longitud": 14, "decimalesImplicitos": 2 },
-    "fecha": { "inicio": 98, "longitud": 8 },
+    "fecha": { "registro": "01", "inicio": 13, "longitud": 8 },
     "descripcion": { "inicio": 65, "longitud": 33 }
   }
 }

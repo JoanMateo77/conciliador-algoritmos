@@ -88,14 +88,20 @@ function leerAnchoFijo(texto: string, plantilla: Plantilla): ResultadoLectura {
   const lineas = quitarBOM(texto).split(/\r?\n/);
   const lector = crearLector(plantilla);
   const detalle = plantilla.registroDetalle;
+  // Última línea vista de cada tipo de registro, para campos que viven en un encabezado.
+  const ultimas = new Map<string, string>();
   lineas.forEach((l, i) => {
     if (l.trim() === '') return;
-    // Solo las líneas del tipo de registro de detalle; encabezados y controles se saltan.
-    if (detalle && l.slice(detalle.inicio - 1, detalle.inicio - 1 + detalle.longitud) !== detalle.valor) return;
+    // Solo las líneas del tipo de registro de detalle; encabezados y controles se guardan y se saltan.
+    if (detalle) {
+      const tipo = l.slice(detalle.inicio - 1, detalle.inicio - 1 + detalle.longitud);
+      if (tipo !== detalle.valor) { ultimas.set(tipo, l); return; }
+    }
     const extraer: Extractor = (m) => {
       if (m.fijo !== undefined) return m.fijo;
       if (m.inicio === undefined || m.longitud === undefined) return '';
-      return l.slice(m.inicio - 1, m.inicio - 1 + m.longitud).trim();
+      const fuente = m.registro !== undefined ? ultimas.get(m.registro) ?? '' : l;
+      return fuente.slice(m.inicio - 1, m.inicio - 1 + m.longitud).trim();
     };
     const valorOmitir = (campo: string) => {
       const m = plantilla.columnas[campo as CampoDestino];

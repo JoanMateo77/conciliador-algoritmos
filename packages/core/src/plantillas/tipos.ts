@@ -25,6 +25,7 @@ export interface MapeoDetallado {
   signo?: 'negar' | 'abs';
   fijo?: string;                // valor constante
   opcional?: boolean;           // delimitado: si la columna no está en el archivo, el campo queda vacío
+  registro?: string;            // ancho fijo: lee de la última línea de ese tipo (ej. la fecha del encabezado '01')
 }
 
 // delimitado: nombre de columna (o índice "#3"); ancho fijo: solo la forma detallada

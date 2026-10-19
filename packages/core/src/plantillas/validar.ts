@@ -10,7 +10,7 @@ const CLAVES_PLANTILLA = new Set([
   'separadorDecimal', 'formatoFecha', 'filasEncabezado', 'registroDetalle', 'omitirSi',
   'soloEntradas', 'detectar', 'columnas', 'hoja',
 ]);
-const CLAVES_MAPEO = new Set(['de', 'inicio', 'longitud', 'unir', 'regex', 'decimalesImplicitos', 'signo', 'fijo', 'opcional']);
+const CLAVES_MAPEO = new Set(['de', 'inicio', 'longitud', 'unir', 'regex', 'decimalesImplicitos', 'signo', 'fijo', 'opcional', 'registro']);
 const CAMPOS = new Set<string>(CAMPOS_DESTINO);
 const SEPARADORES = new Set([',', ';', '\t', '|']);
 
@@ -127,6 +127,9 @@ export function validarPlantilla(p: unknown): ResultadoValidacion {
     for (const [campo, mapeo] of Object.entries(columnas)) {
       if (!CAMPOS.has(campo)) error(`columnas.${campo}`, `campo desconocido; válidos: ${CAMPOS_DESTINO.join(', ')}`);
       else validarMapeo(`columnas.${campo}`, mapeo, modoMapeo, error);
+      if (tipo === 'anchoFijo' && esObjeto(mapeo) && mapeo.registro !== undefined && p.registroDetalle === undefined) {
+        error(`columnas.${campo}.registro`, 'necesita registroDetalle para saber el tipo de cada línea');
+      }
     }
     if (columnas.fecha === undefined) error('columnas.fecha', 'falta');
     if (columnas.monto === undefined) error('columnas.monto', 'falta');
@@ -166,6 +169,10 @@ function validarMapeo(ruta: string, m: unknown, tipo: unknown, error: (ruta: str
     error(`${ruta}.decimalesImplicitos`, 'debe ser un entero entre 0 y 6');
   }
   if (m.signo !== undefined && m.signo !== 'negar' && m.signo !== 'abs') error(`${ruta}.signo`, 'debe ser "negar" o "abs"');
+  if (m.registro !== undefined) {
+    if (!esTexto(m.registro)) error(`${ruta}.registro`, 'debe ser un texto no vacío');
+    if (tipo !== 'anchoFijo') error(`${ruta}.registro`, 'solo aplica a ancho fijo');
+  }
   if (m.opcional !== undefined) {
     if (typeof m.opcional !== 'boolean') error(`${ruta}.opcional`, 'debe ser true o false');
     if (tipo === 'anchoFijo') error(`${ruta}.opcional`, 'no aplica a ancho fijo');

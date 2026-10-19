@@ -42,7 +42,7 @@ describe('anonimizar: formato idéntico', () => {
     }
   });
 
-  test('Asobancaria: solo cambian las zonas mapeadas del detalle; encabezados y controles quedan iguales', () => {
+  test('Asobancaria: solo cambian las zonas mapeadas; sin desplazar fechas, encabezados y controles quedan iguales', () => {
     const original = muestra('recaudo-asobancaria').texto.split('\n');
     const r = anon('recaudo-asobancaria');
     const salida = r.texto.split('\n');
@@ -50,7 +50,6 @@ describe('anonimizar: formato idéntico', () => {
       if (!l.startsWith('06')) return assert.equal(salida[i], l);
       assert.equal(salida[i].slice(0, 2), '06');
       assert.equal(salida[i].slice(50, 64), l.slice(50, 64)); // valor
-      assert.equal(salida[i].slice(97, 105), l.slice(97, 105)); // fecha
       assert.notEqual(salida[i].slice(2, 50), l.slice(2, 50)); // referencia
       assert.equal(salida[i].slice(2, 44), l.slice(2, 44)); // los ceros de relleno se conservan
     });

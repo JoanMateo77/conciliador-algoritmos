@@ -50,6 +50,12 @@ medio (0.2 → 0.3) y una corrección sube el último.
 
 ### Cambiado
 
+- La plantilla `asobancaria-2001` sube a la **versión 2** y lee archivos reales
+  sin modificarlos: la fecha de recaudo sale del registro 01 (posiciones 13-20),
+  como dice el estándar, en vez de esperarla repetida en la zona reservada del
+  detalle. Para eso las columnas de ancho fijo aceptan `registro`, que toma el
+  campo de la última línea de ese tipo. El anonimizador desplaza esa fecha en
+  el encabezado.
 - La plantilla `banco-csv-generico` sube a la **versión 2**: su mapeo ganó la
   columna opcional `REFERENCIA PAGO` (Bre-B). Los movimientos leídos con ella
   llevan `plantillaVersion: 2`.

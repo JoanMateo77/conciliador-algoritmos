@@ -161,6 +161,52 @@ describe('leerArchivo con las muestras incluidas', () => {
     assert.equal(suma(movimientos), 82_170_000);
   });
 
+  test('Asobancaria: la fecha sale del registro 01 aunque los detalles dejen en blanco la zona reservada', () => {
+    const lineas = muestra('recaudo-asobancaria').texto.split('\n');
+    assert.ok(lineas.filter((l) => l.startsWith('06')).every((l) => l.slice(97, 105).trim() === ''));
+    const conOtraFecha = lineas.map((l) => (l.startsWith('01') ? l.slice(0, 12) + '20261020' + l.slice(20) : l)).join('\n');
+    const { movimientos, errores } = leerArchivo(conOtraFecha, plantilla('asobancaria-2001'));
+    assert.deepEqual(errores, []);
+    assert.ok(movimientos.every((x) => x.fecha === '2026-10-20'));
+  });
+
+  test('ancho fijo: registro toma el campo de la última línea de ese tipo', () => {
+    const p = validarPlantilla({
+      id: 'lotes', nombre: 'Lotes', version: 1, lado: 'banco', tipo: 'anchoFijo', formatoFecha: 'yyyyMMdd',
+      registroDetalle: { inicio: 1, longitud: 1, valor: 'D' },
+      columnas: { fecha: { registro: 'H', inicio: 2, longitud: 8 }, monto: { inicio: 2, longitud: 5 } },
+    });
+    assert.ok(p.ok);
+    const texto = ['H20261001', 'D00100', 'H20261002', 'D00200', 'D00300'].join('\n');
+    const { movimientos } = leerArchivo(texto, p.plantilla);
+    assert.deepEqual(movimientos.map((m) => m.fecha), ['2026-10-01', '2026-10-02', '2026-10-02']);
+  });
+
+  test('ancho fijo: un detalle antes de su registro de encabezado da error en esa línea', () => {
+    const p = validarPlantilla({
+      id: 'lotes', nombre: 'Lotes', version: 1, lado: 'banco', tipo: 'anchoFijo', formatoFecha: 'yyyyMMdd',
+      registroDetalle: { inicio: 1, longitud: 1, valor: 'D' },
+      columnas: { fecha: { registro: 'H', inicio: 2, longitud: 8 }, monto: { inicio: 2, longitud: 5 } },
+    });
+    assert.ok(p.ok);
+    const { movimientos, errores } = leerArchivo(['D00100', 'H20261001', 'D00200'].join('\n'), p.plantilla);
+    assert.equal(movimientos.length, 1);
+    assert.deepEqual(errores.map((e) => e.linea), [1]);
+  });
+
+  test('registro solo aplica a ancho fijo con registroDetalle', () => {
+    const delimitado = validarPlantilla({
+      id: 'x', nombre: 'X', version: 1, lado: 'banco', tipo: 'delimitado', formatoFecha: 'yyyy-MM-dd',
+      columnas: { fecha: { de: 'Fecha', registro: 'H' }, monto: 'Monto' },
+    });
+    assert.ok(!delimitado.ok && delimitado.errores.some((e) => e.includes('columnas.fecha.registro')));
+    const sinDetalle = validarPlantilla({
+      id: 'x', nombre: 'X', version: 1, lado: 'banco', tipo: 'anchoFijo', formatoFecha: 'yyyyMMdd',
+      columnas: { fecha: { registro: 'H', inicio: 2, longitud: 8 }, monto: { inicio: 2, longitud: 5 } },
+    });
+    assert.ok(!sinDetalle.ok && sinDetalle.errores.some((e) => e.includes('registroDetalle')));
+  });
+
   test('ERP: 6 ventas, cliente con coma entre comillas', () => {
     const { movimientos } = leerArchivo(muestra('ventas-erp').texto, plantilla('ventas-csv-generico'));
     assert.equal(movimientos.length, 6);

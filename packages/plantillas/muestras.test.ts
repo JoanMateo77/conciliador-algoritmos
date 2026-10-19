@@ -35,8 +35,9 @@ test('las plantillas cumplen lo básico del contrato', () => {
   assert.equal(new Set(PLANTILLAS.map((p) => p.id)).size, PLANTILLAS.length);
   for (const p of PLANTILLAS) {
     assert.ok(formatos.includes(`${p.id}.json`), `el archivo debe llamarse ${p.id}.json`);
-    // Versiones fijadas: un cambio de mapeo sube 'version' (banco-csv-generico: REFERENCIA PAGO).
-    assert.equal(p.version, p.id === 'banco-csv-generico' ? 2 : 1, p.id);
+    // Versiones fijadas: un cambio de mapeo sube 'version' (banco-csv-generico: REFERENCIA PAGO;
+    // asobancaria-2001: fecha desde el registro 01).
+    assert.equal(p.version, p.id === 'banco-csv-generico' || p.id === 'asobancaria-2001' ? 2 : 1, p.id);
     assert.ok(p.nombre && p.descripcion && p.fuente, `${p.id}: falta nombre, descripcion o fuente`);
     assert.ok(p.columnas.fecha && p.columnas.monto, `${p.id}: fecha y monto son obligatorios`);
     for (const o of p.omitirSi ?? []) new RegExp(o.regex); // lanza si la regex es inválida
@@ -71,9 +72,9 @@ test('Asobancaria 2001: líneas de 162 caracteres y totales de control correctos
   assert.equal(Number(lote.slice(11, 29)), suma);
   assert.equal(Number(archivo.slice(2, 11)), detalles.length);
   assert.equal(Number(archivo.slice(11, 29)), suma);
-  // La fecha de recaudo del encabezado se repite en la zona reservada de cada detalle.
-  const fecha = lineas[0].slice(12, 20);
-  for (const d of detalles) assert.equal(d.slice(97, 105), fecha);
+  // Como en un archivo real, la fecha de recaudo va solo en el encabezado y la zona reservada del detalle queda en blanco.
+  assert.match(lineas[0].slice(12, 20), /^\d{8}$/);
+  for (const d of detalles) assert.equal(d.slice(97).trim(), '');
 });
 
 test('extracto bancario: el saldo de cada fila cuadra con el anterior más el valor', () => {

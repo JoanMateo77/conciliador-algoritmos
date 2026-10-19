@@ -323,9 +323,15 @@ function anonimizarAnchoFijo(texto: string, ctx: Contexto): string {
   let otras = 0;
   const salida = texto.split(/(\r?\n)/).map((l, i) => {
     if (i % 2 === 1 || l.trim() === '') return l;
-    if (detalle && l.slice(detalle.inicio - 1, detalle.inicio - 1 + detalle.longitud) !== detalle.valor) { otras++; return l; }
+    const tipo = detalle ? l.slice(detalle.inicio - 1, detalle.inicio - 1 + detalle.longitud) : undefined;
+    // Los campos con 'registro' (la fecha del encabezado) se transforman en su propia línea.
+    const deLinea = zonas.filter((z) => (detalle && tipo !== detalle.valor ? z.m.registro === tipo : z.m.registro === undefined));
+    if (detalle && tipo !== detalle.valor) {
+      otras++;
+      if (deLinea.length === 0) return l;
+    }
     let r = l;
-    for (const z of zonas) {
+    for (const z of deLinea) {
       const ini = z.m.inicio! - 1;
       const fin = ini + z.m.longitud!;
       const nuevo = transformar(ctx, r.slice(ini, fin), z.clase, z.m);
@@ -340,7 +346,7 @@ function anonimizarAnchoFijo(texto: string, ctx: Contexto): string {
       ctx.avisos.add('los totales de control de los registros de encabezado y control no se recalculan al escalar montos');
     }
     if (ctx.opciones.desplazarDias) {
-      ctx.avisos.add('las fechas de los registros de encabezado y control no se desplazan');
+      ctx.avisos.add('en los registros de encabezado y control solo se desplazan las fechas que la plantilla mapea');
     }
   }
   return salida;
